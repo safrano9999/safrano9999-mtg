@@ -91,8 +91,7 @@ jobs:
             docker exec "$container_id" journalctl -u mtg-commander -u mtg-archidekt --no-pager || true
             exit 1
           fi
-          docker cp .github/scripts/smoke-test.py "$container_id:/tmp/mtg-smoke.py"
-          docker exec "$container_id" python3 /tmp/mtg-smoke.py
+          docker exec -i "$container_id" python3 - < .github/scripts/smoke-test.py
           docker exec "$container_id" systemctl unset-environment MTG_MCP_BEARER ARCHIDECKS
           docker exec "$container_id" systemctl restart mtg-commander mtg-archidekt
           for attempt in $(seq 1 30); do
@@ -100,7 +99,7 @@ jobs:
               'from urllib.request import urlopen; [urlopen(f"http://127.0.0.1:{p}/healthz",timeout=2).read() for p in (8000,8001)]' 2>/dev/null; then break; fi
             sleep 2
           done
-          docker exec -e MTG_MCP_BEARER= -e ARCHIDECKS= "$container_id" python3 /tmp/mtg-smoke.py
+          docker exec -i -e MTG_MCP_BEARER= -e ARCHIDECKS= "$container_id" python3 - < .github/scripts/smoke-test.py
       - name: Publish tested image
         env:
           IMAGE_TAG: ${{ steps.tags.outputs.version }}
