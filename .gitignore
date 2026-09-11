@@ -4,3 +4,12 @@ node_modules/
 *.log
 logo-wip/
 API_DEBUG.md
+
+CONTAINER/
+*.env
+*_config.conf
+*_container.conf
+env.example
+config.conf_example
+container.example
+__pycache__/

@@ -1,98 +1,50 @@
-# Command Tower MCP
+# safrano9999-mtg
 
-![Command Tower Banner](./command-tower-mcp-banner.png)
+Fedora 44 container with two independent systemd services and MCP HTTP endpoints:
 
-*When the brew grows cold and cuts are hard, all eyes look in one direction.*
+| Service | Internal endpoint | Backend |
+| --- | --- | --- |
+| mtg-commander | `http://safrano9999-mtg:8000/mcp` | [nathanmartins/mtg-mcp](https://github.com/nathanmartins/mtg-mcp), 19 research tools |
+| mtg-archidekt | `http://safrano9999-mtg:8001/mcp` | Command Tower fork, 6 deck and card tools |
 
-An MCP server for Magic: The Gathering deck building. Create, read, and update your decks on Archidekt. Search for cards with Scryfall. Time for some vibe-brewing!
-
-
-## Tools
-
-| Tool | Description |
-|------|-------------|
-| `create_deck` | Create a new deck (Archidekt) |
-| `list_decks` | List all decks in your account (Archidekt) |
-| `read_deck` | Read deck contents with card counts (Archidekt) |
-| `update_deck` | Add/remove cards from a deck, including custom cards via `Custom#<name>` (Archidekt) |
-| `create_custom_card` | Render a custom card with mtg-crucible and add it to your library (Archidekt) |
-| `edit_custom_card` | Re-render and update a custom card in place (Archidekt) |
-| `list_custom_cards` | List the custom cards in your library (Archidekt) |
-| `delete_custom_card` | Delete a custom card you created this session (Archidekt) |
-| `lookup_cards` | Look up cards by name, bulk up to 150 (Scryfall) |
-| `search_cards` | Search with query syntax, filters, pagination (Scryfall) |
-
-
-## Example Prompt
-
-> There are some cool changelings in the new Lorwyn set. Update my changeling tribal deck.
-
-**Result:**
-
-> I'll help you update your changeling tribal deck with cards from Lorwyn. Let me first check your current deck and then search for Lorwyn changelings.
-> 
-> `[C] list_decks`
-> 
-> ...
-> 
-> Finished! 
-> Please check your deck at: https://archidekt.com/decks/19334189
+Archidekt tools: `create_deck`, `list_decks`, `read_deck`, `update_deck`,
+`lookup_cards`, `search_cards`. Custom-card tools are removed. The upstream
+documentation and attribution are preserved in [UPSTREAM-README.md](UPSTREAM-README.md).
 
 ## Setup
 
-### 1. Clone and install
+Run `./setup.sh --config-only safrano9999-mtg` to generate a named instance,
+or use `--pull` / `--build`. Setup uses the common hardlinked Safrano `config.sh`,
+instance helper, and Examples. It prints the ready-to-use Quadlet/systemd commands.
+Runtime files are in `CONTAINER/safrano9999-mtg/`, including `safrano9999-mtg.env`.
 
-```bash
-git clone https://github.com/yourusername/command-tower-mcp.git
-cd command-tower-mcp
-npm install
-```
+The three source Examples are `env.mtg.example`, `config.mtg.conf_example`, and
+`container.mtg.example`. Optional settings:
 
-### 2. Add to Claude Desktop
+| ENV | Purpose |
+| --- | --- |
+| `MTG_MCP_BEARER` | Shared MCP bearer; blank disables authentication. Generate with `openssl rand -hex 32`. |
+| `ARCHIDEKT_USERNAME` | Optional account username; deck/account tools need both login fields. |
+| `ARCHIDEKT_PASSWORD` | Optional account password. |
+| `ARCHIDECKS` | Optional CSV of reference deck IDs, included in MCP initialize instructions. No access restriction. |
 
-Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Card search and Commander public reads work without account credentials.
+Archidekt login is cached in memory and automatically renewed on use before expiry.
+The container needs no persistent volume; decks remain at Archidekt.
+Both services get injected values through systemd `PassEnvironment`.
 
-```json
-{
-  "mcpServers": {
-    "command-tower": {
-      "command": "node",
-      "args": ["/absolute/path/to/command-tower-mcp/index.js"],
-      "env": {
-        "ARCHIDEKT_USERNAME": "your_username",
-        "ARCHIDEKT_PASSWORD": "your_password"
-      }
-    }
-  }
-}
-```
+Use `CONTAINER_NR=TUN` and `ADDITIONAL_LINE=Network=rafael` for Podman-network
+access without host publishing. External ports are optional and independently
+configurable through the existing publish-port fields. Each endpoint also has
+an unauthenticated `/healthz` that checks its backend connection.
 
-Restart Claude Desktop after saving.
+In OpenClaw configure each endpoint with its bearer, private-network access,
+and `MCP_ALLOW=mtg`. Hermes ignores this OpenClaw agent selection.
 
-## Development
+## Build
 
-### Test with MCP Inspector
-
-Copy `.env.example` to `.env` and fill in your credentials:
-
-```bash
-cp .env.example .env
-```
-
-Run the inspector:
-
-```bash
-npx @modelcontextprotocol/inspector node index.js
-```
-
-## TODO
-
-- [x] Validate deck legality
-- [x] Integrate with custom card generation
-- [x] Fix edge case around quantity changes
-
-## Disclaimer
-
-This is an unofficial fan-made project and is not affiliated with, endorsed by, or sponsored by Wizards of the Coast, Scryfall, or Archidekt.
-
-But thanks to [Scryfall](https://scryfall.com) and [Archidekt](https://archidekt.com) for their generous API terms that make projects like this possible. See [Scryfall API docs](https://scryfall.com/docs/api) and [Archidekt API terms](https://archidekt.com/forum/thread/40353).
+The GitHub Actions workflow builds and tests the Fedora image, then publishes
+`ghcr.io/safrano9999/safrano9999-mtg:latest` and a dated tag. Its source of truth
+is `SCRIPTS/githubactions/safrano9999-mtg`; generated build files live in
+`.github/scripts` and `.github/workflows`. Dependencies are installed at build
+time, without a Python venv or startup downloads.

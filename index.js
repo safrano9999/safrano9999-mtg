@@ -6,7 +6,6 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import * as archidekt from './utils/archidekt.js';
 import * as scryfall from './utils/scryfall.js';
-import * as crucible from './utils/crucible.js';
 import { getLegalityIssues, getFormatId, getFormatName } from './utils/legality.js';
 
 const server = new Server(
@@ -22,51 +21,6 @@ const server = new Server(
     },
   }
 );
-
-// Custom card IDs created during this server process. delete_custom_card only
-// touches cards in this set — a best-effort guard so the agent can clean up its
-// own mistakes but can't delete cards from earlier sessions. Lost on restart.
-const sessionCustomCardIds = new Set();
-
-// One face of a card. Kept intentionally minimal — the content of a card, not
-// its styling. Frame color, rarity symbol, layout, etc. are inferred by
-// mtg-crucible from the mana cost and type line. Defined once and reused for the
-// front (top level) and the optional back face.
-const CRUCIBLE_FACE_PROPERTIES = {
-  name: { type: 'string', description: 'Card name' },
-  manaCost: { type: 'string', description: 'Mana cost in braces, e.g. "{2}{U}{U}".' },
-  typeLine: { type: 'string', description: 'Full type line, e.g. "Legendary Creature — Spirit Wizard"' },
-  colorIndicator: { type: 'string', description: 'Color indicator letters (WUBRG), e.g. "U" or "URG" — for cards whose color is not conveyed by the mana cost (e.g. a colored card with a colorless mana cost, or a transform back face). Omit when the mana cost already shows the color.' },
-  rarity: { type: 'string', enum: ['common', 'uncommon', 'rare', 'mythic'], description: 'Card rarity' },
-  abilities: { type: 'string', description: 'Rules text. Use newlines to separate abilities. Mana/tap symbols in braces, e.g. "{T}: Add {U}". Planeswalker loyalty abilities like "+1: ..." are detected automatically.' },
-  power: { type: 'string', description: 'Power, if a creature' },
-  toughness: { type: 'string', description: 'Toughness, if a creature' },
-  startingLoyalty: { type: 'string', description: 'Starting loyalty, if a planeswalker' },
-  battleDefense: { type: 'string', description: 'Defense, if a battle' },
-  flavorText: { type: 'string', description: 'Italic flavor text below the rules text' },
-  artUrl: { type: 'string', description: 'Art for the card. Either a public image URL (e.g. https://.../art.jpg) or an absolute path to a local image file on this machine (e.g. /Users/me/art.png). Omit for a blank art box.' },
-  artist: { type: 'string', description: 'Artist credit' },
-};
-
-const CRUCIBLE_FACE_SCHEMA = {
-  type: 'object',
-  properties: CRUCIBLE_FACE_PROPERTIES,
-  required: ['name', 'typeLine'],
-};
-
-const CRUCIBLE_CARD_SCHEMA = {
-  type: 'object',
-  properties: {
-    faces: {
-      type: 'array',
-      minItems: 1,
-      maxItems: 2,
-      description: 'The card\'s part(s). Provide one face for a normal card, or two for a multi-part card: transform or modal double-faced cards (front // back), split (two halves, e.g. Fire // Ice), adventure (a creature with a "... — Adventure" instant/sorcery), omen (a "... — Omen" part), room ("Enchantment — Room"), aftermath, fuse, or flip. The first face is the front/primary part; the second is the back/secondary part.',
-      items: CRUCIBLE_FACE_SCHEMA,
-    },
-  },
-  required: ['faces'],
-};
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
@@ -134,57 +88,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             cards_to_add: {
               type: 'string',
-              description: 'Cards to add. Use # headers for categories, e.g.:\n# Commander\n1 Kenrith, the Returned King\n# Ramp\n1 Sol Ring\n1 Arcane Signet\n\nTo add a custom card you made with create_custom_card, prefix its name with "Custom#" (these are not real cards, so Scryfall lookup does not apply), e.g.:\n1 Custom#Maelstrom Vibe-Brewer\nUse list_custom_cards to see available custom cards.',
+              description: 'Cards to add. Use # headers for categories, e.g.:\n# Commander\n1 Kenrith, the Returned King\n# Ramp\n1 Sol Ring\n1 Arcane Signet',
             },
             cards_to_remove: {
               type: 'string',
-              description: 'Cards to remove, one per line. Format: "2 Sol Ring" or "1x Lightning Bolt". Custom cards use the "Custom#" prefix, e.g. "1 Custom#Maelstrom Vibe-Brewer".',
+              description: 'Cards to remove, one per line. Format: "2 Sol Ring" or "1x Lightning Bolt".',
             },
           },
           required: ['deck_id'],
-        },
-      },
-      {
-        name: 'create_custom_card',
-        description: 'Create a custom Magic card and add it to your Archidekt custom-card library. Describe the card\'s content — name, type line, mana cost, rules text, power/toughness, etc. For a multi-part card (transform, modal double-faced, split, adventure, omen, room, aftermath, fuse, or flip), provide each part as an entry in `faces`. To put the card in a deck afterward, use update_deck with a "Custom#<name>" line.',
-        inputSchema: CRUCIBLE_CARD_SCHEMA,
-      },
-      {
-        name: 'edit_custom_card',
-        description: 'Update a custom card you created earlier in this session. Re-renders the card and replaces its content in place (the card keeps its ID, so decks using it update automatically). Provide the full `faces` (it is a replace, not a partial update). Only cards created with create_custom_card during this session can be edited.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            custom_card_id: {
-              type: 'number',
-              description: 'The ID of the custom card to update (returned by create_custom_card).',
-            },
-            faces: CRUCIBLE_CARD_SCHEMA.properties.faces,
-          },
-          required: ['custom_card_id', 'faces'],
-        },
-      },
-      {
-        name: 'list_custom_cards',
-        description: 'List the custom cards in your Archidekt library (created with create_custom_card). To add one to a deck, reference it in update_deck as "Custom#<name>".',
-        inputSchema: {
-          type: 'object',
-          properties: {},
-          required: [],
-        },
-      },
-      {
-        name: 'delete_custom_card',
-        description: 'Delete a custom card from your Archidekt library. For safety, only custom cards created during this session (with create_custom_card) can be deleted — use this to clean up cards you just made.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            custom_card_id: {
-              type: 'number',
-              description: 'The ID of the custom card to delete (returned by create_custom_card).',
-            },
-          },
-          required: ['custom_card_id'],
         },
       },
       {
@@ -242,112 +153,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 // Legality checking and format-name/ID handling live in ./utils/legality.js
 // (getLegalityIssues, getFormatId, getFormatName), imported above.
 
-// Custom cards are referenced in deck text lists with a "Custom#" prefix, e.g.
-// "1 Custom#Maelstrom Vibe-Brewer". They can't be resolved via Scryfall/diff,
-// so we pull them out and handle them by customCardId separately.
-const CUSTOM_CARD_PREFIX = 'custom#';
-
-/**
- * Split a deck text list into custom-card references and the remaining text
- * (real cards, to be sent through the normal diff). Tracks "# Category" headers
- * so each custom card keeps the category it appeared under.
- * @param {string} text
- * @returns {{ customLines: Array<{quantity: number, name: string, category: string|null}>, remainingText: string }}
- */
-function extractCustomCardLines(text) {
-  if (!text) return { customLines: [], remainingText: '' };
-
-  const customLines = [];
-  const keptLines = [];
-  let currentCategory = null;
-
-  for (const rawLine of text.split('\n')) {
-    const line = rawLine.trim();
-    if (!line) {
-      keptLines.push(rawLine);
-      continue;
-    }
-    if (line.startsWith('#')) {
-      currentCategory = line.replace(/^#+\s*/, '').trim() || null;
-      keptLines.push(rawLine);
-      continue;
-    }
-
-    // Card line: optional "1 " / "1x " quantity, then the name.
-    const match = line.match(/^(?:(\d+)x?\s+)?(.+)$/i);
-    const namePart = match[2].trim();
-    if (match && namePart.toLowerCase().startsWith(CUSTOM_CARD_PREFIX)) {
-      customLines.push({
-        quantity: match[1] ? parseInt(match[1], 10) : 1,
-        name: namePart.slice(CUSTOM_CARD_PREFIX.length).trim(),
-        category: currentCategory,
-      });
-      // Intentionally not kept — handled out-of-band.
-    } else {
-      keptLines.push(rawLine);
-    }
-  }
-
-  return { customLines, remainingText: keptLines.join('\n') };
-}
-
-// Whether a deck text list contains any real (non-custom, non-header) card lines.
+// Whether a deck text list contains any card lines below its category headers.
 function hasCardLines(text) {
   return text.split('\n').some((l) => {
     const t = l.trim();
     return t && !t.startsWith('#');
   });
-}
-
-// Validate the `faces` argument shared by create_custom_card / edit_custom_card.
-// Returns an error message string, or null if valid. (minItems/maxItems in the
-// schema is advisory — the SDK doesn't enforce it — so we check here.)
-function validateFacesArg(faces) {
-  if (!Array.isArray(faces) || faces.length < 1 || faces.length > 2) {
-    return 'Provide `faces` with one face (normal card) or two (double-faced card).';
-  }
-  if (!faces[0].name?.trim()) {
-    return 'The first face needs a name.';
-  }
-  return null;
-}
-
-// Render a card from agent args and upload its image(s), returning the Archidekt
-// custom-card payload. Shared by create_custom_card and edit_custom_card.
-async function renderAndBuildCard(accessToken, username, args) {
-  // Normalize the agent-facing shape into a crucible CardData (folds the second
-  // face into linkedCard), and stamp the designer credit unless one was given.
-  const cardData = {
-    ...crucible.toCrucibleCard(args),
-    designer: args.designer || `${username} • command-tower-mcp`,
-  };
-
-  server.sendLoggingMessage({ level: 'info', data: `Rendering custom card: ${cardData.name}` });
-  const rendered = await crucible.renderCustomCard(cardData);
-
-  server.sendLoggingMessage({ level: 'info', data: 'Uploading rendered image(s)...' });
-  const ext = crucible.formatExtension(rendered.format);
-  const frontImageUrl = await archidekt.uploadImage(accessToken, rendered.frontFace, `front.${ext}`);
-  let backImageUrl;
-  if (rendered.backFace) {
-    backImageUrl = await archidekt.uploadImage(accessToken, rendered.backFace, `back.${ext}`);
-  }
-
-  return crucible.toArchidektCustomCard(cardData, { frontImageUrl, backImageUrl });
-}
-
-// Format a created/updated custom card record into a short summary line set.
-function summarizeCustomCard(card) {
-  let output = '';
-  if (card.frontTypes) {
-    const typeLine = [card.frontSuperTypes, card.frontTypes].filter(Boolean).join(' ');
-    output += `\nType: ${typeLine}${card.frontSubTypes ? ` — ${card.frontSubTypes}` : ''}`;
-  }
-  if (card.frontManaCost) output += `\nMana cost: ${card.frontManaCost}`;
-  if (card.hasBack) output += `\nBack face: ${card.backName}`;
-  if (card.frontImageUrl) output += `\nImage: ${card.frontImageUrl}`;
-  if (card.hasBack && card.backImageUrl) output += `\nBack image: ${card.backImageUrl}`;
-  return output;
 }
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -475,29 +286,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const deck = await archidekt.getDeck(accessToken, args.deck_id);
       const cards = deck.cards || [];
-      const customCards = deck.customCards || [];
 
-      if (cards.length === 0 && customCards.length === 0) {
+      if (cards.length === 0) {
         return {
           content: [{ type: 'text', text: `Deck "${deck.name}" is empty.` }],
         };
       }
 
-      // Build unified display entries from real cards and custom cards.
-      const entries = [
-        ...cards.map(c => ({
-          name: c.card.oracleCard.name,
-          qty: c.quantity,
-          category: c.categories?.[0] || 'Uncategorized',
-          custom: false,
-        })),
-        ...customCards.map(c => ({
-          name: c.card.frontName,
-          qty: c.quantity,
-          category: c.categories?.[0] || 'Uncategorized',
-          custom: true,
-        })),
-      ];
+      const entries = cards.map(c => ({
+        name: c.card.oracleCard.name,
+        qty: c.quantity,
+        category: c.categories?.[0] || 'Uncategorized',
+      }));
 
       // Group entries by category
       const byCategory = {};
@@ -515,7 +315,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const categoryCount = categoryCards.reduce((sum, e) => sum + e.qty, 0);
         output += `# ${category} (${categoryCount})\n`;
         for (const e of categoryCards) {
-          output += `${e.qty}x ${e.name}${e.custom ? ' [custom]' : ''}\n`;
+          output += `${e.qty}x ${e.name}\n`;
         }
         output += '\n';
       }
@@ -575,22 +375,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return `${qty}x ${card.oracleCard.name} (${edition})${categories}`;
       }).join('\n');
 
-      // Pull custom-card references ("Custom#Name") out of the add/remove lists;
-      // they're resolved by customCardId, not through the name-resolving diff.
-      const addExtract = extractCustomCardLines(cards_to_add || '');
-      const removeExtract = extractCustomCardLines(cards_to_remove || '');
-
       const cardActions = [];
       const warnings = [];
       let diffResult = { toAdd: [], cardErrors: [] };
 
       // Real cards to add: resolve names via the diff endpoint.
-      if (hasCardLines(addExtract.remainingText)) {
+      if (hasCardLines((cards_to_add || ''))) {
         server.sendLoggingMessage({ level: 'info', data: 'Computing diff...' });
         diffResult = await archidekt.computeDiff(
           accessToken,
           currentDeckList,
-          addExtract.remainingText
+          (cards_to_add || '')
         );
 
         for (const item of diffResult.toAdd || []) {
@@ -603,26 +398,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
       }
 
-      // Custom cards to add: resolve names against the user's custom-card library.
-      if (addExtract.customLines.length > 0) {
-        const library = await archidekt.listCustomCards(accessToken);
-        for (const { name: cardName, quantity, category } of addExtract.customLines) {
-          const match = library.find(cc => cc.frontName?.toLowerCase() === cardName.toLowerCase());
-          if (match) {
-            cardActions.push(archidekt.createAddCustomCardAction({
-              customCardId: match.id,
-              quantity,
-              categories: category ? [category] : ['Custom Card'],
-            }));
-          } else {
-            warnings.push(`No custom card named "${cardName}" in your library (create it first with create_custom_card)`);
-          }
-        }
-      }
-
       // Real cards to remove: find them in the current deck by name.
-      if (hasCardLines(removeExtract.remainingText)) {
-        for (const rawLine of removeExtract.remainingText.split('\n')) {
+      if (hasCardLines((cards_to_remove || ''))) {
+        for (const rawLine of (cards_to_remove || '').split('\n')) {
           const line = rawLine.trim();
           if (!line || line.startsWith('#')) continue;
 
@@ -666,39 +444,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
       }
 
-      // Custom cards to remove: match against the deck's customCards array.
-      if (removeExtract.customLines.length > 0) {
-        const deckCustomCards = deck.customCards || [];
-        for (const { name: cardName, quantity } of removeExtract.customLines) {
-          const entry = deckCustomCards.find(c => c.card?.frontName?.toLowerCase() === cardName.toLowerCase());
-          if (entry) {
-            const currentQty = entry.quantity || 1;
-            if (quantity >= currentQty) {
-              // Removing the whole stack: "remove" deletes the deck relation.
-              cardActions.push(archidekt.createRemoveCustomCardAction({
-                customCardId: entry.card.id,
-                deckRelationId: String(entry.id),
-                quantity: currentQty,
-                categories: entry.categories || [],
-                modifier: entry.modifier || 'Normal',
-              }));
-            } else {
-              // Partial removal: "modify" down to the remaining quantity so we
-              // don't wipe the whole relation.
-              cardActions.push(archidekt.createModifyCustomCardAction({
-                customCardId: entry.card.id,
-                deckRelationId: String(entry.id),
-                quantity: currentQty - quantity,
-                categories: entry.categories || [],
-                modifier: entry.modifier || 'Normal',
-              }));
-            }
-          } else {
-            warnings.push(`Custom card not found in deck: ${cardName}`);
-          }
-        }
-      }
-
       if (cardActions.length === 0) {
         let text = 'No valid card changes to make.';
         if (warnings.length > 0) {
@@ -717,8 +462,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       // Fetch updated deck for card count and legality check
       const updatedDeck = await archidekt.getDeck(accessToken, deck_id);
       const totalCards =
-        (updatedDeck.cards || []).reduce((sum, c) => sum + c.quantity, 0) +
-        (updatedDeck.customCards || []).reduce((sum, c) => sum + c.quantity, 0);
+        (updatedDeck.cards || []).reduce((sum, c) => sum + c.quantity, 0);
 
       // Build summary
       const added = result.add?.length || 0;
@@ -749,143 +493,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       server.sendLoggingMessage({ level: 'error', data: `Update deck error: ${error.message}` });
       return {
         content: [{ type: 'text', text: `Failed to update deck: ${error.message}` }],
-        isError: true,
-      };
-    }
-  }
-
-  // create_custom_card
-  if (name === 'create_custom_card') {
-    const facesError = validateFacesArg(args.faces);
-    if (facesError) {
-      return { content: [{ type: 'text', text: facesError }], isError: true };
-    }
-
-    try {
-      const { accessToken, userId, username } = await archidekt.getAuth();
-
-      const card = await renderAndBuildCard(accessToken, username, args);
-
-      server.sendLoggingMessage({ level: 'info', data: `Creating custom card: ${card.frontName}` });
-      const created = await archidekt.createCustomCard(accessToken, userId, card);
-
-      // Remember it so edit_custom_card / delete_custom_card can touch it this session.
-      if (created.id) sessionCustomCardIds.add(created.id);
-
-      const output = `Created custom card "${created.frontName}" (ID: ${created.id})` + summarizeCustomCard(created);
-      return {
-        content: [{ type: 'text', text: output }],
-      };
-    } catch (error) {
-      server.sendLoggingMessage({ level: 'error', data: `Create custom card error: ${error.message}` });
-      return {
-        content: [{ type: 'text', text: `Failed to create custom card: ${error.message}` }],
-        isError: true,
-      };
-    }
-  }
-
-  // edit_custom_card
-  if (name === 'edit_custom_card') {
-    const cardId = args.custom_card_id;
-
-    // Same session-scoped guard as delete: only cards made this session.
-    if (!sessionCustomCardIds.has(cardId)) {
-      return {
-        content: [{ type: 'text', text: `Custom card ${cardId} was not created in this session, so it can't be edited here. Only cards made with create_custom_card during this session can be edited.` }],
-        isError: true,
-      };
-    }
-
-    const facesError = validateFacesArg(args.faces);
-    if (facesError) {
-      return { content: [{ type: 'text', text: facesError }], isError: true };
-    }
-
-    try {
-      const { accessToken, username } = await archidekt.getAuth();
-
-      const card = await renderAndBuildCard(accessToken, username, args);
-
-      server.sendLoggingMessage({ level: 'info', data: `Updating custom card ${cardId}: ${card.frontName}` });
-      const updated = await archidekt.updateCustomCard(accessToken, cardId, card);
-
-      const output = `Updated custom card "${updated.frontName}" (ID: ${cardId})` + summarizeCustomCard(updated);
-      return {
-        content: [{ type: 'text', text: output }],
-      };
-    } catch (error) {
-      server.sendLoggingMessage({ level: 'error', data: `Edit custom card error: ${error.message}` });
-      return {
-        content: [{ type: 'text', text: `Failed to edit custom card: ${error.message}` }],
-        isError: true,
-      };
-    }
-  }
-
-  // list_custom_cards
-  if (name === 'list_custom_cards') {
-    try {
-      const { accessToken } = await archidekt.getAuth();
-      server.sendLoggingMessage({ level: 'info', data: 'Fetching custom cards...' });
-
-      const cards = await archidekt.listCustomCards(accessToken);
-
-      if (!cards || cards.length === 0) {
-        return {
-          content: [{ type: 'text', text: 'No custom cards found. Create one with create_custom_card.' }],
-        };
-      }
-
-      let output = `Found ${cards.length} custom card(s). Reference one in update_deck as "Custom#<name>":\n\n`;
-      for (const c of cards) {
-        const typeLine = [c.frontSuperTypes, c.frontTypes].filter(Boolean).join(' ');
-        const fullType = typeLine + (c.frontSubTypes ? ` — ${c.frontSubTypes}` : '');
-        output += `**${c.frontName}**`;
-        if (c.frontManaCost) output += ` · ${c.frontManaCost}`;
-        if (fullType.trim()) output += ` · ${fullType}`;
-        if (c.hasBack && c.backName) output += ` // ${c.backName}`;
-        output += '\n';
-      }
-
-      return {
-        content: [{ type: 'text', text: output.trim() }],
-      };
-    } catch (error) {
-      server.sendLoggingMessage({ level: 'error', data: `List custom cards error: ${error.message}` });
-      return {
-        content: [{ type: 'text', text: `Failed to list custom cards: ${error.message}` }],
-        isError: true,
-      };
-    }
-  }
-
-  // delete_custom_card
-  if (name === 'delete_custom_card') {
-    const cardId = args.custom_card_id;
-
-    // Only allow deleting cards created earlier in this same session.
-    if (!sessionCustomCardIds.has(cardId)) {
-      return {
-        content: [{ type: 'text', text: `Custom card ${cardId} was not created in this session, so it can't be deleted here. Only cards made with create_custom_card during this session can be deleted; remove others manually on Archidekt.` }],
-        isError: true,
-      };
-    }
-
-    try {
-      const { accessToken } = await archidekt.getAuth();
-      server.sendLoggingMessage({ level: 'info', data: `Deleting custom card ${cardId}...` });
-
-      await archidekt.deleteCustomCard(accessToken, cardId);
-      sessionCustomCardIds.delete(cardId);
-
-      return {
-        content: [{ type: 'text', text: `Deleted custom card ${cardId}.` }],
-      };
-    } catch (error) {
-      server.sendLoggingMessage({ level: 'error', data: `Delete custom card error: ${error.message}` });
-      return {
-        content: [{ type: 'text', text: `Failed to delete custom card: ${error.message}` }],
         isError: true,
       };
     }

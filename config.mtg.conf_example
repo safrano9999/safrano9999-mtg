@@ -1,0 +1,12 @@
+#CONTAINER-NAME
+CONTAINER_NAME=safrano9999-mtg
+
+#container-command: image
+#default-preset: 0.0.0.0
+MTG_HOST=0.0.0.0
+
+#default-preset: 8000
+MTG_COMMANDER_PORT=8000
+
+#default-preset: 8001
+MTG_ARCHIDEKT_PORT=8001

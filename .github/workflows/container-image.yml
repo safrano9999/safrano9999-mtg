@@ -1,0 +1,113 @@
+# Source of truth: SCRIPTS/githubactions. Generated copies are overwritten.
+name: MTG container image
+run-name: ${{ inputs.monitor_id != '' && format('{0} [monitor:{1}:{2}]', github.workflow, inputs.monitor_id, inputs.monitor_final) || github.workflow }}
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag; blank uses YYYY.M.D
+        required: false
+        default: ""
+      push_latest:
+        description: Also publish latest
+        type: boolean
+        default: true
+      monitor_id:
+        description: Optional build monitor correlation
+        default: ""
+      monitor_final:
+        description: Final monitored stage
+        type: boolean
+        default: true
+concurrency:
+  group: mtg-${{ github.ref }}
+  cancel-in-progress: false
+permissions:
+  contents: read
+  packages: write
+jobs:
+  build-test-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      IMAGE_NAME: ghcr.io/safrano9999/safrano9999-mtg
+      DOCKER_BUILD_RECORD_UPLOAD: "false"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Test Archidekt implementation
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
+          node --check index.js
+      - name: Resolve tags
+        id: tags
+        env:
+          REQUESTED_TAG: ${{ inputs.image_tag }}
+        run: |
+          version="${REQUESTED_TAG:-$(date -u +%Y.%-m.%-d)}"
+          [[ "$version" =~ ^[A-Za-z0-9_.-]+$ ]]
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .github/scripts/Containerfile
+          platforms: linux/amd64
+          pull: true
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.version }}
+      - name: Test systemd services and MCP HTTP
+        env:
+          IMAGE_TAG: ${{ steps.tags.outputs.version }}
+        run: |
+          set -euo pipefail
+          container_id=$(docker run -d --privileged --cgroupns=private \
+            --tmpfs /run --tmpfs /tmp \
+            -e MTG_MCP_BEARER=ci-mtg-token -e ARCHIDECKS=12372,17244 \
+            "${IMAGE_NAME}:${IMAGE_TAG}")
+          trap 'docker rm -f "$container_id" >/dev/null' EXIT
+          ready=false
+          for attempt in $(seq 1 60); do
+            if docker exec "$container_id" systemctl is-active --quiet mtg-commander mtg-archidekt \
+              && docker exec "$container_id" python3 -c \
+              'from urllib.request import urlopen; [urlopen(f"http://127.0.0.1:{p}/healthz",timeout=2).read() for p in (8000,8001)]' 2>/dev/null; then
+              ready=true; break
+            fi
+            sleep 2
+          done
+          if [ "$ready" != true ]; then
+            docker logs "$container_id"
+            docker exec "$container_id" journalctl -u mtg-commander -u mtg-archidekt --no-pager || true
+            exit 1
+          fi
+          docker cp .github/scripts/smoke-test.py "$container_id:/tmp/mtg-smoke.py"
+          docker exec "$container_id" python3 /tmp/mtg-smoke.py
+          docker exec "$container_id" systemctl unset-environment MTG_MCP_BEARER ARCHIDECKS
+          docker exec "$container_id" systemctl restart mtg-commander mtg-archidekt
+          for attempt in $(seq 1 30); do
+            if docker exec "$container_id" python3 -c \
+              'from urllib.request import urlopen; [urlopen(f"http://127.0.0.1:{p}/healthz",timeout=2).read() for p in (8000,8001)]' 2>/dev/null; then break; fi
+            sleep 2
+          done
+          docker exec -e MTG_MCP_BEARER= -e ARCHIDECKS= "$container_id" python3 /tmp/mtg-smoke.py
+      - name: Publish tested image
+        env:
+          IMAGE_TAG: ${{ steps.tags.outputs.version }}
+          PUSH_LATEST: ${{ inputs.push_latest }}
+        run: |
+          docker push "${IMAGE_NAME}:${IMAGE_TAG}"
+          if [ "$PUSH_LATEST" = true ]; then
+            docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${IMAGE_NAME}:latest"
+            docker push "${IMAGE_NAME}:latest"
+          fi

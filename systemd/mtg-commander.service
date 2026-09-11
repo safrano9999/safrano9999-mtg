@@ -1,0 +1,14 @@
+[Unit]
+Description=MTG Commander MCP HTTP bridge
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/mtg/server.py commander
+WorkingDirectory=/tmp
+PassEnvironment=MTG_HOST MTG_COMMANDER_PORT MTG_MCP_BEARER ARCHIDECKS
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

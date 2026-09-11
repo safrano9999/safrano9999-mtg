@@ -1,0 +1,10 @@
+.git
+.env*
+*.env
+CONTAINER
+safrano9999-examples
+node_modules
+__pycache__
+*.log
+*_config.conf
+*_container.conf
