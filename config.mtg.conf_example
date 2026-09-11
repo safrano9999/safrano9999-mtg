@@ -2,6 +2,13 @@
 CONTAINER_NAME=safrano9999-mtg
 
 #container-command: image
+# Start each MCP service independently; optional booleans: true or false.
+#default-preset: true
+MTG_COMMANDER_ENABLED=true
+
+#default-preset: true
+MTG_ARCHIDEKT_ENABLED=true
+
 #default-preset: 0.0.0.0
 MTG_HOST=0.0.0.0
 

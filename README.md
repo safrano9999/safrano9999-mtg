@@ -33,6 +33,28 @@ Archidekt login is cached in memory and automatically renewed on use before expi
 The container needs no persistent volume; decks remain at Archidekt.
 Both services get injected values through systemd `PassEnvironment`.
 
+### Select which services start
+
+`MTG_COMMANDER_ENABLED` and `MTG_ARCHIDEKT_ENABLED` are optional `true`/`false`
+settings in `config.mtg.conf_example`, both defaulting to `true`. Setup writes
+them into the instance configuration, which Quadlet loads using `EnvironmentFile`.
+The existing generator also omits published ports for disabled services.
+
+You can override the selection directly in the Quadlet's `[Container]` section:
+
+```ini
+Environment=MTG_COMMANDER_ENABLED=true
+Environment=MTG_ARCHIDEKT_ENABLED=false
+```
+
+This starts only Commander on port 8000. Reverse the values for Archidekt only;
+set both to `true` for both services, or both to `false` to leave both stopped.
+systemd evaluates the variables before starting each service. The container
+healthcheck checks only enabled endpoints and succeeds when both are disabled.
+Apply changes by restarting the container; after editing the Quadlet, run
+`systemctl --user daemon-reload` first. To preserve changes across setup runs,
+use the instance configuration or the existing `ADDITIONAL_LINE` fields.
+
 Use `CONTAINER_NR=TUN` and `ADDITIONAL_LINE=Network=rafael` for Podman-network
 access without host publishing. External ports are optional and independently
 configurable through the existing publish-port fields. Each endpoint also has

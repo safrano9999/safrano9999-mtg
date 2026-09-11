@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # Source of truth: SCRIPTS/githubactions. Generated copies are overwritten.
-"""Check both running HTTP services using only synthetic credentials."""
+"""Check service selection and MCP HTTP using only synthetic credentials."""
 import asyncio
 import os
+import subprocess
 
 import httpx
 from fastmcp import Client
@@ -15,7 +16,21 @@ async def main():
     for component, port, count in [("commander", 8000, 19), ("archidekt", 8001, 6)]:
         port = int(os.environ.get(f"MTG_{component.upper()}_PORT", port))
         url = f"http://127.0.0.1:{port}"
+        enabled = os.environ.get(f"MTG_{component.upper()}_ENABLED", "true") != "false"
+        state = subprocess.check_output([
+            "systemctl", "show", f"mtg-{component}.service", "--property=ActiveState", "--value",
+        ], text=True).strip()
+        assert state == ("active" if enabled else "inactive"), (component, state)
         async with httpx.AsyncClient(timeout=5) as http:
+            if not enabled:
+                try:
+                    await http.get(url + "/healthz")
+                except httpx.ConnectError:
+                    pass
+                else:
+                    raise AssertionError(f"Disabled {component} still accepts HTTP connections")
+                print(f"{component}: service inactive and port closed OK", flush=True)
+                continue
             health = await http.get(url + "/healthz")
             assert health.status_code == 200, (component, health.status_code)
             if token:

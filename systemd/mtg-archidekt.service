@@ -3,9 +3,10 @@ Description=MTG Archidekt MCP HTTP bridge
 After=network.target
 
 [Service]
+ExecCondition=/usr/bin/test "${MTG_ARCHIDEKT_ENABLED}" != false
 ExecStart=/usr/bin/python3 /opt/mtg/server.py archidekt
 WorkingDirectory=/tmp
-PassEnvironment=MTG_HOST MTG_ARCHIDEKT_PORT MTG_MCP_BEARER ARCHIDEKT_USERNAME ARCHIDEKT_PASSWORD ARCHIDECKS
+PassEnvironment=MTG_ARCHIDEKT_ENABLED MTG_HOST MTG_ARCHIDEKT_PORT MTG_MCP_BEARER ARCHIDEKT_USERNAME ARCHIDEKT_PASSWORD ARCHIDECKS
 Environment=PYTHONUNBUFFERED=1
 Restart=on-failure
 RestartSec=3

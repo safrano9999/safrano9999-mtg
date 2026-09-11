@@ -74,22 +74,27 @@ jobs:
           set -euo pipefail
           container_id=""
           trap 'if [ -n "$container_id" ]; then docker rm -f "$container_id" >/dev/null; fi' EXIT
-          for auth_case in required optional; do
-            test_bearer=""
-            test_decks=""
-            if [ "$auth_case" = required ]; then
-              test_bearer=ci-mtg-token
-              test_decks=12372,17244
-            fi
+          for service_case in defaults optional commander archidekt none; do
+            echo "Testing service selection: $service_case"
+            test_bearer=ci-mtg-token
+            test_decks=12372,17244
+            service_args=()
+            case "$service_case" in
+              optional) test_bearer=""; test_decks="" ;;
+              commander) service_args=(-e MTG_COMMANDER_ENABLED=true -e MTG_ARCHIDEKT_ENABLED=false) ;;
+              archidekt) service_args=(-e MTG_COMMANDER_ENABLED=false -e MTG_ARCHIDEKT_ENABLED=true) ;;
+              none) service_args=(-e MTG_COMMANDER_ENABLED=false -e MTG_ARCHIDEKT_ENABLED=false) ;;
+            esac
             container_id=$(docker run -d --privileged --cgroupns=private \
               --tmpfs /run --tmpfs /tmp \
               -e "MTG_MCP_BEARER=$test_bearer" -e "ARCHIDECKS=$test_decks" \
+              "${service_args[@]}" \
               "${IMAGE_NAME}:${IMAGE_TAG}")
+            health_command=$(docker inspect --format '{{index .Config.Healthcheck.Test 1}}' "$container_id")
             ready=false
             for attempt in $(seq 1 60); do
-              if docker exec "$container_id" systemctl is-active --quiet mtg-commander mtg-archidekt 2>/dev/null \
-                && docker exec "$container_id" python3 -c \
-                'from urllib.request import urlopen; [urlopen(f"http://127.0.0.1:{p}/healthz",timeout=2).read() for p in (8000,8001)]' 2>/dev/null; then
+              if docker exec "$container_id" systemctl is-active --quiet multi-user.target 2>/dev/null \
+                && docker exec "$container_id" /bin/sh -c "$health_command" 2>/dev/null; then
                 ready=true; break
               fi
               sleep 2
