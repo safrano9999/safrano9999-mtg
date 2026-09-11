@@ -72,34 +72,37 @@ jobs:
           IMAGE_TAG: ${{ steps.tags.outputs.version }}
         run: |
           set -euo pipefail
-          container_id=$(docker run -d --privileged --cgroupns=private \
-            --tmpfs /run --tmpfs /tmp \
-            -e MTG_MCP_BEARER=ci-mtg-token -e ARCHIDECKS=12372,17244 \
-            "${IMAGE_NAME}:${IMAGE_TAG}")
-          trap 'docker rm -f "$container_id" >/dev/null' EXIT
-          ready=false
-          for attempt in $(seq 1 60); do
-            if docker exec "$container_id" systemctl is-active --quiet mtg-commander mtg-archidekt \
-              && docker exec "$container_id" python3 -c \
-              'from urllib.request import urlopen; [urlopen(f"http://127.0.0.1:{p}/healthz",timeout=2).read() for p in (8000,8001)]' 2>/dev/null; then
-              ready=true; break
+          container_id=""
+          trap 'if [ -n "$container_id" ]; then docker rm -f "$container_id" >/dev/null; fi' EXIT
+          for auth_case in required optional; do
+            test_bearer=""
+            test_decks=""
+            if [ "$auth_case" = required ]; then
+              test_bearer=ci-mtg-token
+              test_decks=12372,17244
             fi
-            sleep 2
+            container_id=$(docker run -d --privileged --cgroupns=private \
+              --tmpfs /run --tmpfs /tmp \
+              -e "MTG_MCP_BEARER=$test_bearer" -e "ARCHIDECKS=$test_decks" \
+              "${IMAGE_NAME}:${IMAGE_TAG}")
+            ready=false
+            for attempt in $(seq 1 60); do
+              if docker exec "$container_id" systemctl is-active --quiet mtg-commander mtg-archidekt 2>/dev/null \
+                && docker exec "$container_id" python3 -c \
+                'from urllib.request import urlopen; [urlopen(f"http://127.0.0.1:{p}/healthz",timeout=2).read() for p in (8000,8001)]' 2>/dev/null; then
+                ready=true; break
+              fi
+              sleep 2
+            done
+            if [ "$ready" != true ]; then
+              docker logs "$container_id"
+              docker exec "$container_id" journalctl -u mtg-commander -u mtg-archidekt --no-pager || true
+              exit 1
+            fi
+            docker exec -i "$container_id" python3 - < .github/scripts/smoke-test.py
+            docker rm -f "$container_id" >/dev/null
+            container_id=""
           done
-          if [ "$ready" != true ]; then
-            docker logs "$container_id"
-            docker exec "$container_id" journalctl -u mtg-commander -u mtg-archidekt --no-pager || true
-            exit 1
-          fi
-          docker exec -i "$container_id" python3 - < .github/scripts/smoke-test.py
-          docker exec "$container_id" systemctl unset-environment MTG_MCP_BEARER ARCHIDECKS
-          docker exec "$container_id" systemctl restart mtg-commander mtg-archidekt
-          for attempt in $(seq 1 30); do
-            if docker exec "$container_id" python3 -c \
-              'from urllib.request import urlopen; [urlopen(f"http://127.0.0.1:{p}/healthz",timeout=2).read() for p in (8000,8001)]' 2>/dev/null; then break; fi
-            sleep 2
-          done
-          docker exec -i -e MTG_MCP_BEARER= -e ARCHIDECKS= "$container_id" python3 - < .github/scripts/smoke-test.py
       - name: Publish tested image
         env:
           IMAGE_TAG: ${{ steps.tags.outputs.version }}
