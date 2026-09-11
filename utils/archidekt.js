@@ -370,6 +370,29 @@ export function createModifyCardAction(options) {
   };
 }
 
+/** Remove a requested quantity across all matching printings/deck relations. */
+export function createRemoveCardActions(deckCards, quantity) {
+  const actions = [];
+  let remaining = quantity;
+  for (const entry of deckCards) {
+    if (remaining <= 0) break;
+    const current = entry.quantity || 1;
+    const removed = Math.min(remaining, current);
+    const options = {
+      cardId: String(entry.card.id),
+      deckRelationId: String(entry.id),
+      quantity: removed === current ? current : current - removed,
+      categories: entry.categories || [],
+      modifier: entry.modifier || 'Normal',
+    };
+    actions.push(removed === current
+      ? createRemoveCardAction(options)
+      : createModifyCardAction(options));
+    remaining -= removed;
+  }
+  return actions;
+}
+
 /**
  * Generate a random patch ID for card operations
  * @returns {string}

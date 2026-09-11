@@ -411,33 +411,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const qty = parseInt(match[1], 10);
           const cardName = match[2].trim();
 
-          // Find this card in the current deck
-          const deckCard = currentCards.find(c =>
+          // The same card can have separate stacks for different printings.
+          const matchingCards = currentCards.filter(c =>
             c.card.oracleCard.name.toLowerCase() === cardName.toLowerCase()
           );
-
-          if (deckCard) {
-            const currentQty = deckCard.quantity || 1;
-            if (qty >= currentQty) {
-              // Removing the whole stack: "remove" deletes the deck relation.
-              cardActions.push(archidekt.createRemoveCardAction({
-                cardId: String(deckCard.card.id),
-                deckRelationId: String(deckCard.id),
-                quantity: currentQty,
-                categories: deckCard.categories || [],
-                modifier: deckCard.modifier || 'Normal',
-              }));
-            } else {
-              // Partial removal: "remove" would wipe the whole relation, so
-              // "modify" the relation down to the remaining quantity instead.
-              cardActions.push(archidekt.createModifyCardAction({
-                cardId: String(deckCard.card.id),
-                deckRelationId: String(deckCard.id),
-                quantity: currentQty - qty,
-                categories: deckCard.categories || [],
-                modifier: deckCard.modifier || 'Normal',
-              }));
-            }
+          if (matchingCards.length > 0) {
+            cardActions.push(...archidekt.createRemoveCardActions(matchingCards, qty));
           } else {
             warnings.push(`Card not found in deck: ${cardName}`);
           }
