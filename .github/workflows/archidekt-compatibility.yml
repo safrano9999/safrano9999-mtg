@@ -1,0 +1,35 @@
+# Source of truth: SCRIPTS/githubactions. Generated copies are overwritten.
+name: Archidekt runtime compatibility
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - integrations/archidekt/**
+      - .github/scripts/check-archidekt-patches.py
+      - .github/workflows/archidekt-compatibility.yml
+  pull_request:
+    paths:
+      - integrations/archidekt/**
+      - .github/scripts/check-archidekt-patches.py
+      - .github/workflows/archidekt-compatibility.yml
+permissions:
+  contents: read
+concurrency:
+  group: archidekt-compatibility-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Pull pinned upstream image
+        run: |
+          image=$(python3 -c 'import json; print(json.load(open("integrations/archidekt/upstream.json"))["image"])')
+          [[ "$image" =~ @sha256:[0-9a-f]{64}$ ]]
+          docker pull "$image"
+      - name: Verify exact patches and collection behavior
+        run: python3 .github/scripts/check-archidekt-patches.py --engine docker

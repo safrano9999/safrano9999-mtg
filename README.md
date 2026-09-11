@@ -11,6 +11,11 @@ Archidekt tools: `create_deck`, `list_decks`, `read_deck`, `update_deck`,
 `lookup_cards`, `search_cards`. Custom-card tools are removed. The upstream
 documentation and attribution are preserved in [UPSTREAM-README.md](UPSTREAM-README.md).
 
+For the deployment with Nathan plus the external 16-tool Archidekt MCP, see
+[Archidekt integration and persistent runtime patches](integrations/archidekt/README.md).
+That configuration disables the bundled Command Tower service and uses the
+digest-pinned third-party image with shared Redis and verified Quadlet patches.
+
 ## Setup
 
 Run `./setup.sh --config-only safrano9999-mtg` to generate a named instance,
