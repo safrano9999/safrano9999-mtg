@@ -10,7 +10,7 @@ RUN git init && git remote add origin https://github.com/nathanmartins/mtg-mcp.g
     && go test ./... \
     && go build -trimpath -buildvcs=false -ldflags="-s -w" -o /mtg-mcp .
 
-FROM registry.fedoraproject.org/fedora:44
+FROM quay.io/fedora/fedora:45@sha256:6305681786488fb23c2fbe2dbbb383b285ba2fb3ea5383322514a9d31e04aecb
 RUN dnf -y install systemd python3 python3-pip nodejs npm ca-certificates \
     && dnf clean all && rm -rf /var/cache/dnf \
     && systemctl mask getty.target console-getty.service systemd-logind.service \
@@ -31,7 +31,7 @@ COPY utils/ ./utils/
 COPY systemd/*.service /etc/systemd/system/
 RUN systemctl enable mtg-commander.service mtg-archidekt.service
 LABEL org.opencontainers.image.title="safrano9999-mtg" \
-      org.opencontainers.image.description="Fedora 44: Commander research and Archidekt deck MCP services" \
+      org.opencontainers.image.description="Fedora 45: Commander research and Archidekt deck MCP services" \
       org.opencontainers.image.source="https://github.com/safrano9999/safrano9999-mtg"
 EXPOSE 8000 8001
 STOPSIGNAL SIGRTMIN+3

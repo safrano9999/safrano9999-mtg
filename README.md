@@ -1,6 +1,6 @@
 # safrano9999-mtg
 
-Fedora 44 container with two independent systemd services and MCP HTTP endpoints:
+Fedora 45 container with two independent systemd services and MCP HTTP endpoints:
 
 | Service | Internal endpoint | Backend |
 | --- | --- | --- |
