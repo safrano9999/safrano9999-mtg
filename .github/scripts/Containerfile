@@ -20,10 +20,13 @@ ENV container=podman PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
     MTG_COMMANDER_ENABLED=true MTG_ARCHIDEKT_ENABLED=true
 WORKDIR /opt/mtg
 COPY requirements.txt package.json package-lock.json ./
-RUN python3 -m pip install --no-cache-dir -r requirements.txt \
+RUN dnf -y install gcc python3-devel rust cargo \
+    && python3 -m pip install --no-cache-dir -r requirements.txt \
     && python3 -m pip check \
     && npm ci --omit=dev --ignore-scripts --no-audit --no-fund \
-    && npm cache clean --force
+    && npm cache clean --force \
+    && dnf -y remove gcc python3-devel rust cargo \
+    && dnf clean all && rm -rf /var/cache/dnf /root/.cache
 COPY --from=commander-build /mtg-mcp /usr/local/bin/mtg-mcp
 COPY --from=commander-build /src/LICENSE /usr/share/licenses/mtg-commander/LICENSE
 COPY index.js server.py LICENSE ./
