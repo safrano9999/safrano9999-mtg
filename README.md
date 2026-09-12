@@ -2,6 +2,8 @@
 
 Fedora 45 container with two independent systemd services and MCP HTTP endpoints:
 
+The MCP runtime uses Fedora's Python 3.14 package because the current FastMCP dependency `beartype` does not support Python 3.15.
+
 | Service | Internal endpoint | Backend |
 | --- | --- | --- |
 | mtg-commander | `http://safrano9999-mtg:8000/mcp` | [nathanmartins/mtg-mcp](https://github.com/nathanmartins/mtg-mcp), 19 research tools |

@@ -11,7 +11,9 @@ RUN git init && git remote add origin https://github.com/nathanmartins/mtg-mcp.g
     && go build -trimpath -buildvcs=false -ldflags="-s -w" -o /mtg-mcp .
 
 FROM quay.io/fedora/fedora:45@sha256:6305681786488fb23c2fbe2dbbb383b285ba2fb3ea5383322514a9d31e04aecb
-RUN dnf -y install systemd python3 python3-pip nodejs npm ca-certificates \
+RUN dnf -y install systemd python3.14 nodejs npm ca-certificates \
+    && python3.14 -m ensurepip --upgrade \
+    && ln -s /usr/bin/python3.14 /usr/local/bin/python3 \
     && dnf clean all && rm -rf /var/cache/dnf \
     && systemctl mask getty.target console-getty.service systemd-logind.service \
     && systemctl set-default multi-user.target
@@ -20,19 +22,17 @@ ENV container=podman PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
     MTG_COMMANDER_ENABLED=true MTG_ARCHIDEKT_ENABLED=true
 WORKDIR /opt/mtg
 COPY requirements.txt package.json package-lock.json ./
-RUN dnf -y install gcc python3-devel rust cargo \
-    && python3 -m pip install --no-cache-dir -r requirements.txt \
+RUN python3 -m pip install --no-cache-dir -r requirements.txt \
     && python3 -m pip check \
     && npm ci --omit=dev --ignore-scripts --no-audit --no-fund \
-    && npm cache clean --force \
-    && dnf -y remove gcc python3-devel rust cargo \
-    && dnf clean all && rm -rf /var/cache/dnf /root/.cache
+    && npm cache clean --force
 COPY --from=commander-build /mtg-mcp /usr/local/bin/mtg-mcp
 COPY --from=commander-build /src/LICENSE /usr/share/licenses/mtg-commander/LICENSE
 COPY index.js server.py LICENSE ./
 COPY utils/ ./utils/
 COPY systemd/*.service /etc/systemd/system/
-RUN systemctl enable mtg-commander.service mtg-archidekt.service
+RUN sed -i 's|/usr/bin/python3 |/usr/local/bin/python3 |' /etc/systemd/system/mtg-*.service \
+    && systemctl enable mtg-commander.service mtg-archidekt.service
 LABEL org.opencontainers.image.title="safrano9999-mtg" \
       org.opencontainers.image.description="Fedora 45: Commander research and Archidekt deck MCP services" \
       org.opencontainers.image.source="https://github.com/safrano9999/safrano9999-mtg"
