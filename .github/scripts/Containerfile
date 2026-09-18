@@ -1,6 +1,6 @@
 # Source of truth: SCRIPTS/githubactions. Generated copies are overwritten.
-FROM docker.io/library/golang:1.27.1 AS commander-build
-ARG COMMANDER_REVISION=cce0378b5aa92b0cc2a9b977859f83baa8d8d038
+FROM docker.io/library/golang:1.27@sha256:f44f6e88636cfb311f9ebace870ded69d943f227bb3cb27d32ffd84ea18c43ea AS commander-build
+ARG COMMANDER_REVISION=efa6c3df0ac71678ecadb5864c6afe87b03b1ee1
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local
 WORKDIR /src
 RUN git init && git remote add origin https://github.com/nathanmartins/mtg-mcp.git \
