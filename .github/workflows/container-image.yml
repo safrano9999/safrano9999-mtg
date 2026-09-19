@@ -69,6 +69,8 @@ jobs:
           tags: ${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.version }}
           labels: |
             io.safrano9999.build.commit=${{ github.sha }}
+            io.safrano9999.build.source=edeb6184515e0b25b412834f5e0112f027a68ba1
+            io.safrano9999.build.inputs=5308c5d67266df065a77681b4f0408d505885c052474e47433026cecb8af051b
       - name: Test systemd services and MCP HTTP
         env:
           IMAGE_TAG: ${{ steps.tags.outputs.version }}
