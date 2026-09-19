@@ -1,5 +1,5 @@
 # Source of truth: SCRIPTS/githubactions. Generated copies are overwritten.
-FROM docker.io/library/golang:1.27@sha256:f44f6e88636cfb311f9ebace870ded69d943f227bb3cb27d32ffd84ea18c43ea AS commander-build
+FROM docker.io/library/golang:1.27@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244 AS commander-build
 ARG COMMANDER_REVISION=efa6c3df0ac71678ecadb5864c6afe87b03b1ee1
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local
 WORKDIR /src
@@ -10,7 +10,7 @@ RUN git init && git remote add origin https://github.com/nathanmartins/mtg-mcp.g
     && go test ./... \
     && go build -trimpath -buildvcs=false -ldflags="-s -w" -o /mtg-mcp .
 
-FROM quay.io/fedora/fedora@sha256:47096f483347945c6077871e5f93a168a94b1799623372c3b86a9ff81148017e
+FROM quay.io/fedora/fedora:45@sha256:78ebbdc752eda02b9c2705876bd55fe7e5e2fda1a1194fa5e7f1f7486bcc297c
 RUN dnf -y install systemd python3.14 nodejs npm ca-certificates \
     && python3.14 -m ensurepip --upgrade \
     && ln -s /usr/bin/python3.14 /usr/local/bin/python3 \
