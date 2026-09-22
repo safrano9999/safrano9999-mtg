@@ -1,0 +1,81 @@
+--- a/public_collection.py
++++ b/public_collection.py
+@@ -206,6 +206,32 @@
+             page,
+             game,
+         )
++        # Private collection HTML pages ignore JWT headers and return 404. The
++        # same authenticated JSON API used by the website supports private reads.
++        if auth_token:
++            response = await self._request_archidekt(
++                "GET",
++                f"{self.settings.normalized_archidekt_base_url}/api/collection/{collection_id}/v2/",
++                params={"game": game, "page": page, "pageSize": 100},
++                headers=_json_headers(auth_token),
++            )
++            response.raise_for_status()
++            payload = response.json()
++            if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
++                raise RuntimeError("Archidekt collection API returned an invalid payload.")
++            records = payload["results"]
++            return {"pageProps": {
++                "owner": payload.get("owner") or {},
++                "game": game,
++                "count": int(payload["count"]),
++                "totalPages": max(1, int(payload["totalPages"])),
++                "redux": {"collectionV2": {
++                    "preferredPageSize": 100,
++                    "collectionCards": {str(record["id"]): record for record in records},
++                    "serverCollectionData": [record["id"] for record in records],
++                }},
++            }}
++
+         response = await self._request_archidekt(
+             "GET",
+             f"{self.settings.normalized_archidekt_base_url}/collection/v2/{collection_id}",
+@@ -236,7 +262,10 @@
+             if not raw_record:
+                 continue
+ 
+-            card = raw_record.get("card") or {}
++            raw_card = raw_record.get("card") or {}
++            oracle_card = raw_card.get("oracleCard") or {}
++            card = {**oracle_card, **raw_card}
++            edition = raw_card.get("edition") or {}
+             prices = card.get("prices") or {}
+             legalities = card.get("legalities") or {}
+             casting_cost = card.get("castingCost") or []
+@@ -244,7 +273,7 @@
+             supertypes = tuple(str(item) for item in (card.get("superTypes") or []) if item)
+             types = tuple(str(item) for item in (card.get("types") or []) if item)
+             subtypes = tuple(str(item) for item in (card.get("subTypes") or []) if item)
+-            mana_cost = (
++            mana_cost = card.get("manaCost") or (
+                 "".join(f"{{{symbol}}}" for symbol in casting_cost)
+                 if isinstance(casting_cost, list)
+                 else None
+@@ -256,7 +285,7 @@
+                     created_at=_parse_datetime(raw_record.get("createdAt")),
+                     updated_at=_parse_datetime(raw_record.get("modifiedAt")),
+                     quantity=int(raw_record.get("quantity") or 0),
+-                    foil=bool(raw_record.get("foil")),
++                    foil=bool(raw_record.get("foil") or str(raw_record.get("modifier") or "").casefold() in {"foil", "etched"}),
+                     modifier=raw_record.get("modifier"),
+                     tags=tuple(str(item) for item in (raw_record.get("tags") or []) if item),
+                     condition_code=_safe_int(raw_record.get("condition")),
+@@ -274,11 +303,11 @@
+                     type_line=build_type_line(supertypes, types, subtypes),
+                     keywords=tuple(str(item) for item in (card.get("keywords") or []) if item),
+                     rarity=(str(card.get("rarity")).casefold() if card.get("rarity") else None),
+-                    set_code=(str(card.get("setCode")).casefold() if card.get("setCode") else None),
+-                    set_name=card.get("set"),
++                    set_code=(str(card.get("setCode") or edition.get("editioncode")).casefold() if card.get("setCode") or edition.get("editioncode") else None),
++                    set_name=card.get("set") or edition.get("editionname"),
+                     commander_legal=_normalize_legality(legalities.get("commander")),
+-                    oracle_id=card.get("oracleCardUid"),
+-                    card_id=_safe_int(card.get("id")),
++                    oracle_id=card.get("oracleCardUid") or oracle_card.get("uid"),
++                    card_id=_safe_int(card.get("cardId") or card.get("id")),
+                     printing_id=card.get("uid"),
+                     edhrec_rank=_safe_int(card.get("edhrecRank")),
+                     image_uri=card.get("imgurl") or None,

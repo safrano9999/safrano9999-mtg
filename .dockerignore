@@ -1,0 +1,4 @@
+.git
+CONTAINER
+runtime/*.env
+**/__pycache__

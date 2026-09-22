@@ -1,0 +1,7 @@
+# Optional non-secret overrides for the Quadlet. Keep secrets in safrano9999-mtg.env.
+CONTAINER_NAME=safrano9999-mtg
+MTG_COMMANDER_ENABLED=true
+MTG_COMMANDER_PORT=8001
+MTG_HOST=0.0.0.0
+ARCHIDEKT_MCP_HOST=0.0.0.0
+ARCHIDEKT_MCP_PORT=8000

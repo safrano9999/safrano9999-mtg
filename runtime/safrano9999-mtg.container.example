@@ -1,0 +1,18 @@
+[Unit]
+Description=Safrano9999 MCP (Archidekt and Commander)
+After=network-online.target redis.service
+Wants=network-online.target
+Requires=redis.service
+
+[Container]
+Image=ghcr.io/safrano9999/safrano9999-mtg:latest
+ContainerName=safrano9999-mtg
+Network=rafael
+EnvironmentFile=/var/home/rafael/.config/containers/safrano9999-mtg.env
+
+[Service]
+Restart=always
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

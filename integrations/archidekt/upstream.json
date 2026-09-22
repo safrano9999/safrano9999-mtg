@@ -1,0 +1,23 @@
+{
+  "source": "https://github.com/dnviti/archidekt-mcp-server",
+  "revision": "1416d17a3f901f8bfb48fa02a5c1fc2bdd317e97",
+  "image": "ghcr.io/dnviti/archidekt-mcp-server@sha256:40faa0f80522162eb1465bad112ba82e1c46dd04536f21419248bfcb49266f8d",
+  "module_directory": "/usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/integrations",
+  "files": {
+    "authenticated.py": {
+      "original_sha256": "229c9db716e4314866c836e893e10c5fea4af2f8cbe8bb3fb8533c4a41667e16",
+      "patched_sha256": "04f160d6b907233f74d92a862c3323f7207c0f51bec105b3486fd6a0574b817d",
+      "patch": "authenticated.patch"
+    },
+    "public_collection.py": {
+      "original_sha256": "7d5a5c769595a05ea6a337362f1fab31ffc7fb42f182fcd92b82fd4705eca65b",
+      "patched_sha256": "06820fb5d3557eff793dc7965b9eb4901959892363c1e17e86ca3291978835e5",
+      "patch": "public_collection.patch"
+    },
+    "http_base.py": {
+      "original_sha256": "b4efb393ab48f011e87cfd1c52f0c74bdbf289ddb13d77faa5e32c312960f445",
+      "patched_sha256": "070927ffff59854efce2f0d408c72efd39813980198558dc9983535f90b7044e",
+      "patch": "http_base.patch"
+    }
+  }
+}

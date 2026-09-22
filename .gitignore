@@ -1,0 +1,7 @@
+runtime/*.env
+runtime/*.conf
+**/__pycache__/
+*.py[cod]
+free_sync_state.json
+.env
+.env.bak

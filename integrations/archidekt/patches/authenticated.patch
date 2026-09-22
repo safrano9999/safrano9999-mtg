@@ -1,0 +1,25 @@
+--- a/authenticated.py
++++ b/authenticated.py
+@@ -419,7 +419,7 @@
+         _, response = await self._request_authenticated(
+             account,
+             "PATCH",
+-            f"{self.settings.normalized_archidekt_base_url}/api/decks/v2/{deck_id}/",
++            f"{self.settings.normalized_archidekt_base_url}/api/decks/{deck_id}/update/",
+             json=self._deck_update_payload(deck),
+             headers_factory=_json_headers,
+         )
+@@ -435,11 +435,11 @@
+         _, response = await self._request_authenticated(
+             account,
+             "DELETE",
+-            f"{self.settings.normalized_archidekt_base_url}/api/decks/{deck_id}/v2/",
++            f"{self.settings.normalized_archidekt_base_url}/api/decks/{deck_id}/",
+             headers_factory=_json_headers,
+         )
+         response.raise_for_status()
+-        return _ensure_mapping(response.json(), "Archidekt deck delete")
++        return _ensure_mapping(response.json(), "Archidekt deck delete") if response.content else {}
+ 
+     async def modify_deck_cards(
+         self,
