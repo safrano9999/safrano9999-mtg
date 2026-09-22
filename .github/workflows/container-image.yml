@@ -37,6 +37,20 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
+      - name: Verify Archidekt runtime patches
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          base_image="$(python3 -c 'import json; print(json.load(open("integrations/archidekt/upstream.json"))["image"])')"
+          patch_dir="$RUNNER_TEMP/archidekt-patches"
+          docker pull "$base_image"
+          python3 integrations/archidekt/prepare.py "$patch_dir" --engine docker
+          python3 -c 'import json, pathlib, sys; root=pathlib.Path(sys.argv[1]); print(json.dumps({"source": (root/"public_collection.py").read_text(), "http_base": (root/"http_base.py").read_text()}))' "$patch_dir" \
+            | docker run --rm --network=none -i --user 0 \
+                -v "$GITHUB_WORKSPACE:/repo:ro" \
+                -v "$patch_dir:/verify:ro" \
+                --entrypoint python "$base_image" \
+                /repo/integrations/archidekt/tests/collection-regression.py
       - name: Resolve tag
         id: tags
         env:

@@ -16,8 +16,14 @@
     },
     "http_base.py": {
       "original_sha256": "b4efb393ab48f011e87cfd1c52f0c74bdbf289ddb13d77faa5e32c312960f445",
-      "patched_sha256": "070927ffff59854efce2f0d408c72efd39813980198558dc9983535f90b7044e",
+      "patched_sha256": "43efa5ab8bcfa0e6697045ceccb95426e0427a28ddc263a056ea913c47edf988",
       "patch": "http_base.patch"
+    },
+    "account_identity.py": {
+      "module_directory": "/usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/services",
+      "original_sha256": "feff1788baa6452fc0d3c5539e927fd06898ab93b72d099d8e188b7513005ba1",
+      "patched_sha256": "0a352814fa5eae66d899dfee1d56df20d30faa7e1a87cdc62f63f43f6cd45fc6",
+      "patch": "account_identity.patch"
     }
   }
 }

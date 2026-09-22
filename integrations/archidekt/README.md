@@ -31,9 +31,18 @@ SHA-256 checksums. The patches reproduce the running fixes:
   The API's nested card data is normalized for the existing collection filters;
   anonymous public HTML reads stay supported.
 
-The request helper accepts `bearer` or `jwt` and rejects unknown values. Only
-patch differences are stored here. Original modules are obtained from the
-pinned image. The third-party image itself is unchanged.
+The request helper accepts `bearer` or `jwt` and rejects unknown values. The
+configured value is used for routes that accept either scheme; the known
+personal-deck v3 route is normalized to `Bearer`, and the curated identity
+route is normalized to `JWT`. The optional `ARCHIDEKT_MCP_AUTH_FALLBACK` flag
+can retry one 401/403 with the other scheme, but remains disabled by default.
+
+The server-side account wrapper reads `ARCHIDEKT_USERNAME` and
+`ARCHIDEKT_PASSWORD` only from the MCP environment. Client-supplied account
+credentials are ignored; an MCP-authenticated context or the configured
+server account is used instead. Only patch differences are stored here.
+Original modules are obtained from the pinned image. The third-party image
+itself is unchanged.
 
 ## Prepare or restore the persistent patches
 
@@ -45,12 +54,13 @@ python3 integrations/archidekt/prepare.py \
 ```
 
 This needs Python 3, Git and Podman. It starts a temporary container with no
-network, extracts the three original modules, verifies their checksums, applies
+network, extracts the four original modules, verifies their checksums, applies
 the patches and verifies the resulting checksums before writing any file.
 It does not start the MCP, change account settings, or restart existing services.
 
-The Quadlet binds the three patched files read-only over their matching Python
-modules.
+The Quadlet binds the four patched files read-only over their matching Python
+modules. The combined MTG image copies the same four verified runtime files
+into the pinned Archidekt package during its build.
 The files survive reboots and container recreation. After replacing patch
 files in an existing deployment, restart `archidekt-mcp.service` to mount them.
 When updating the image digest, regenerate and test the patches and checksums.

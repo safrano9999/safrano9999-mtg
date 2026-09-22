@@ -25,10 +25,13 @@ COPY supervisor.py /usr/local/bin/safrano9999-mtg-supervisor.py
 COPY integrations/archidekt/runtime/authenticated.py /usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/integrations/authenticated.py
 COPY integrations/archidekt/runtime/http_base.py /usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/integrations/http_base.py
 COPY integrations/archidekt/runtime/public_collection.py /usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/integrations/public_collection.py
+COPY integrations/archidekt/runtime/account_identity.py /usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/services/account_identity.py
 RUN chmod 0755 /usr/local/bin/mtg-mcp /usr/local/bin/safrano9999-mtg-supervisor.py \
     && chmod 0644 /opt/safrano9999-mtg/server.py \
     && chown -R appuser:appuser /opt/safrano9999-mtg \
-    && python -m compileall -q /opt/safrano9999-mtg /usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/integrations
+    && python -m compileall -q /opt/safrano9999-mtg \
+      /usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/integrations \
+      /usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/services
 
 ENV MTG_COMMANDER_ENABLED=true \
     MTG_COMMANDER_PORT=8001 \

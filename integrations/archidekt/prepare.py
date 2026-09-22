@@ -14,10 +14,19 @@ def prepare(output: Path, engine: str) -> None:
     root = Path(__file__).resolve().parent
     upstream = json.loads((root / "upstream.json").read_text())
     filenames = list(upstream["files"])
+    default_module_directory = upstream["module_directory"]
+    source_specs = {
+        name: (
+            specification.get("module_directory", default_module_directory),
+            specification.get("source_name", name),
+        )
+        for name, specification in upstream["files"].items()
+    }
     extract = (
         "import json;from pathlib import Path;"
-        f"root=Path({upstream['module_directory']!r});"
-        f"print(json.dumps({{name:(root/name).read_text() for name in {filenames!r}}}))"
+        f"specs={source_specs!r};"
+        "print(json.dumps({name:(Path(directory)/filename).read_text() "
+        "for name,(directory,filename) in specs.items()}))"
     )
     sources = json.loads(subprocess.check_output(
         [engine, "run", "--rm", "--pull=never", "--network=none",
