@@ -1,5 +1,5 @@
 # Source of truth: SCRIPTS/githubactions. Generated copies are overwritten.
-name: Safrano9999 MCP container image
+name: Safrano9999 MTG container image
 
 on:
   workflow_dispatch:

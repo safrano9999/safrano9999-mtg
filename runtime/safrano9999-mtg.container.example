@@ -1,5 +1,5 @@
 [Unit]
-Description=Safrano9999 MCP (Archidekt and Commander)
+Description=Safrano9999 MTG (Archidekt and Commander)
 After=network-online.target redis.service
 Wants=network-online.target
 Requires=redis.service
