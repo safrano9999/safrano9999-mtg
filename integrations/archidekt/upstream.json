@@ -6,7 +6,7 @@
   "files": {
     "authenticated.py": {
       "original_sha256": "229c9db716e4314866c836e893e10c5fea4af2f8cbe8bb3fb8533c4a41667e16",
-      "patched_sha256": "04f160d6b907233f74d92a862c3323f7207c0f51bec105b3486fd6a0574b817d",
+      "patched_sha256": "bfe506419087b9a942aec083bcf439cc24c78dd746696fba1bcaf47646892de8",
       "patch": "authenticated.patch"
     },
     "public_collection.py": {
@@ -22,7 +22,7 @@
     "account_identity.py": {
       "module_directory": "/usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/services",
       "original_sha256": "feff1788baa6452fc0d3c5539e927fd06898ab93b72d099d8e188b7513005ba1",
-      "patched_sha256": "0a352814fa5eae66d899dfee1d56df20d30faa7e1a87cdc62f63f43f6cd45fc6",
+      "patched_sha256": "73b019d8a71ddc4080a0b8694489eb9e76d3fd2d567462c0706e6a14a1135a77",
       "patch": "account_identity.patch"
     }
   }

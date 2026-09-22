@@ -79,7 +79,7 @@ class ArchidektAuthenticatedClient(_ArchidektHttpClientBase):
 
         response_payload = response.json()
         user = response_payload.get("user") or {}
-        token = response_payload.get("token")
+        token = response_payload.get("token") or response_payload.get("access_token")
 
         if not token:
             raise RuntimeError("Archidekt login did not return an access token.")

@@ -73,73 +73,36 @@
  
      async def ensure_account_identity(
          self,
-@@ -74,54 +93,63 @@
+@@ -74,56 +93,42 @@
          account: AuthenticatedAccount,
      ) -> AuthenticatedAccount | None:
          provider = self._oauth_provider()
 -        if provider is None or not account.auth_session_id:
--            return None
-+        session = None
-+        login_account: ArchidektAccount | None = None
-+
-+        if provider is not None and account.auth_session_id:
-+            try:
-+                session = await provider.load_session(account.auth_session_id)
-+            except Exception as error:
-+                self._logger.warning("Unable to load the Archidekt auth session: %s", error)
++        login_account = _server_account_from_env()
++        if login_account is None:
+             return None
  
--        try:
+         try:
 -            session = await provider.load_session(account.auth_session_id)
-             if (
+-            if (
 -                session is None
 -                or not session.archidekt_login_identifier
 -                or not session.archidekt_login_password
-+                session is not None
-+                and session.archidekt_login_identifier
-+                and session.archidekt_login_password
-             ):
+-            ):
 -                return None
-+                login_account = (
-+                    ArchidektAccount(
-+                        email=session.archidekt_login_identifier,
-+                        password=session.archidekt_login_password,
-+                    )
-+                    if session.archidekt_login_identifier_type == "email"
-+                    else ArchidektAccount(
-+                        username=session.archidekt_login_identifier,
-+                        password=session.archidekt_login_password,
-+                    )
-+                )
- 
+-
 -            login_account = (
 -                ArchidektAccount(
 -                    email=session.archidekt_login_identifier,
 -                    password=session.archidekt_login_password,
-+        if login_account is None:
-+            login_account = _server_account_from_env()
-+        if login_account is None:
-+            return None
-+
-+        try:
-+            renewed = await self._auth_client().login(login_account)
-+            if provider is not None and session is not None:
-+                updated_session = await provider.replace_archidekt_session_token(
-+                    session.session_id,
-+                    archidekt_token=renewed.token,
-+                    archidekt_username=renewed.username,
-+                    archidekt_user_id=renewed.user_id,
-                 )
+-                )
 -                if session.archidekt_login_identifier_type == "email"
 -                else ArchidektAccount(
 -                    username=session.archidekt_login_identifier,
 -                    password=session.archidekt_login_password,
-+                auth_session_id = (
-+                    updated_session.session_id
-+                    if updated_session is not None
-+                    else account.auth_session_id
-                 )
+-                )
 -            )
--            renewed = await self._auth_client().login(login_account)
+             renewed = await self._auth_client().login(login_account)
 -            updated_session = await provider.replace_archidekt_session_token(
 -                session.session_id,
 -                archidekt_token=renewed.token,
@@ -152,20 +115,12 @@
 -                "Renewed Archidekt login token for OAuth session %s",
 -                updated_session.session_id,
 -            )
-+            else:
-+                auth_session_id = account.auth_session_id
-+
-+            self._logger.info("Renewed the server-side Archidekt login token")
-             return AuthenticatedAccount(
+-            return AuthenticatedAccount(
 -                token=updated_session.archidekt_token,
 -                username=updated_session.archidekt_username,
 -                user_id=updated_session.archidekt_user_id,
 -                auth_session_id=updated_session.session_id,
-+                token=renewed.token,
-+                username=renewed.username,
-+                user_id=renewed.user_id,
-+                auth_session_id=auth_session_id,
-             )
+-            )
          except Exception as error:
 -            self._logger.warning(
 -                "Archidekt login renewal failed for OAuth session %s: %s",
@@ -175,5 +130,32 @@
 +            self._logger.warning("Archidekt login renewal failed: %s", error)
              return None
  
++        # Redis is only a cache for the MCP session.  A stale or unavailable
++        # session must not invalidate a fresh login made with MCP .env
++        # credentials or turn a successful renewal into a 401.
++        auth_session_id = account.auth_session_id
++        if provider is not None and account.auth_session_id:
++            try:
++                updated_session = await provider.replace_archidekt_session_token(
++                    account.auth_session_id,
++                    archidekt_token=renewed.token,
++                    archidekt_username=renewed.username,
++                    archidekt_user_id=renewed.user_id,
++                )
++            except Exception as error:
++                self._logger.warning("Unable to update the Archidekt auth session: %s", error)
++            else:
++                if updated_session is not None:
++                    auth_session_id = updated_session.session_id
++
++        self._logger.info("Renewed the server-side Archidekt login token")
++        return AuthenticatedAccount(
++            token=renewed.token,
++            username=renewed.username,
++            user_id=renewed.user_id,
++            auth_session_id=auth_session_id,
++        )
++
      async def renew_after_archidekt_auth_failure(
-
+         self,
+         account: AuthenticatedAccount,
