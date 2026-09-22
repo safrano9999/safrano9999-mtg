@@ -1,0 +1,35 @@
+--- a/http_base.py
++++ b/http_base.py
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+ 
+ import logging
++import os
+ from typing import Any
+ 
+ import httpx
+@@ -12,10 +13,23 @@
+ LOGGER = logging.getLogger("archidekt_commander_mcp.clients")
+ 
+ 
++_AUTH_SCHEME_HEADERS = {"bearer": "Bearer", "jwt": "JWT"}
++
++
++def _configured_auth_scheme() -> str:
++    raw = os.environ.get("ARCHIDEKT_MCP_AUTH_SCHEME", "jwt").strip().lower()
++    try:
++        return _AUTH_SCHEME_HEADERS[raw]
++    except KeyError as error:
++        raise ValueError(
++            "ARCHIDEKT_MCP_AUTH_SCHEME must be either 'bearer' or 'jwt'"
++        ) from error
++
++
+ def _auth_headers(token: str | None) -> dict[str, str]:
+     if not token:
+         return {}
+-    return {"Authorization": f"JWT {token}"}
++    return {"Authorization": f"{_configured_auth_scheme()} {token}"}
+ 
+ 
+ def _json_headers(token: str | None) -> dict[str, str]:

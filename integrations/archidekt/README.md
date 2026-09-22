@@ -24,13 +24,16 @@ SHA-256 checksums. The patches reproduce the running fixes:
 
 - Deck updates use `PATCH /api/decks/{id}/update/`.
 - Deck deletion uses `DELETE /api/decks/{id}/` and handles an empty HTTP 204.
-- Authenticated collection reads use `GET /api/collection/{id}/v2/` with JWT
-  authentication and pagination. Private HTML collection pages return 404
-  even with a JWT header. The API's nested card data is normalized for the
-  existing collection filters; anonymous public HTML reads stay supported.
+- Authenticated collection reads use `GET /api/collection/{id}/v2/` with the
+  configured `Authorization` scheme and pagination. The deployment sets
+  `ARCHIDEKT_MCP_AUTH_SCHEME=bearer`, matching the current Archidekt API.
+  Private HTML collection pages return 404 even with an authorization header.
+  The API's nested card data is normalized for the existing collection filters;
+  anonymous public HTML reads stay supported.
 
-Only patch differences are stored here. Original modules are obtained from
-the pinned image. The third-party image itself is unchanged.
+The request helper accepts `bearer` or `jwt` and rejects unknown values. Only
+patch differences are stored here. Original modules are obtained from the
+pinned image. The third-party image itself is unchanged.
 
 ## Prepare or restore the persistent patches
 
@@ -42,11 +45,12 @@ python3 integrations/archidekt/prepare.py \
 ```
 
 This needs Python 3, Git and Podman. It starts a temporary container with no
-network, extracts the two original modules, verifies their checksums, applies
-the patches and verifies the resulting checksums before writing either file.
+network, extracts the three original modules, verifies their checksums, applies
+the patches and verifies the resulting checksums before writing any file.
 It does not start the MCP, change account settings, or restart existing services.
 
-The Quadlet binds both files read-only over their matching Python modules.
+The Quadlet binds the three patched files read-only over their matching Python
+modules.
 The files survive reboots and container recreation. After replacing patch
 files in an existing deployment, restart `archidekt-mcp.service` to mount them.
 When updating the image digest, regenerate and test the patches and checksums.

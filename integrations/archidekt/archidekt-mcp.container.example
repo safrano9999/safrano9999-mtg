@@ -10,6 +10,7 @@ ContainerName=archidekt-mcp
 Network=rafael
 EnvironmentFile=%h/.config/containers/archidekt-mcp.env
 Volume=%h/.config/containers/archidekt-mcp-patches/authenticated.py:/usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/integrations/authenticated.py:ro,Z
+Volume=%h/.config/containers/archidekt-mcp-patches/http_base.py:/usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/integrations/http_base.py:ro,Z
 Volume=%h/.config/containers/archidekt-mcp-patches/public_collection.py:/usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/integrations/public_collection.py:ro,Z
 NoNewPrivileges=true
 
