@@ -1,9 +1,10 @@
 # Source of truth: SCRIPTS/githubactions. Generated copies are overwritten.
 FROM docker.io/library/golang:1.27@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244 AS commander-build
-ARG COMMANDER_REVISION=efa6c3df0ac71678ecadb5864c6afe87b03b1ee1
+ARG COMMANDER_REPOSITORY=https://github.com/safrano9999/safrano9999-nathanmtg.git
+ARG COMMANDER_REVISION=dc85b7e3683aa5f1e9841d3275e9ea69c6f24932
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local
 WORKDIR /src
-RUN git init && git remote add origin https://github.com/nathanmartins/mtg-mcp.git \
+RUN git init && git remote add origin "${COMMANDER_REPOSITORY}" \
     && git -c http.version=HTTP/1.1 fetch --depth=1 origin "${COMMANDER_REVISION}" \
     && git checkout --detach FETCH_HEAD \
     && test "$(git rev-parse HEAD)" = "${COMMANDER_REVISION}" \
@@ -13,29 +14,30 @@ RUN git init && git remote add origin https://github.com/nathanmartins/mtg-mcp.g
 FROM ghcr.io/dnviti/archidekt-mcp-server@sha256:40faa0f80522162eb1465bad112ba82e1c46dd04536f21419248bfcb49266f8d
 USER root
 
-# FastMCP 3 is compatible with the pinned upstream MCP SDK 1.27 and provides
-# the authenticated stdio-to-streamable-HTTP bridge for mtg-commander.
-RUN python -m pip install --no-cache-dir --no-compile \
-      "mcp==1.27.0" "fastmcp==3.0.0"
+# Keep the Archidekt runtime on the MCP SDK version used by this deployment;
+# mtg-commander now provides its own native Streamable HTTP transport.
+RUN python -m pip install --no-cache-dir --no-compile "mcp==1.27.0"
 
 COPY --from=commander-build /mtg-mcp /usr/local/bin/mtg-mcp
 COPY --from=commander-build /src/LICENSE /usr/share/licenses/mtg-commander/LICENSE
-COPY server.py /opt/safrano9999-mtg/server.py
 COPY supervisor.py /usr/local/bin/safrano9999-mtg-supervisor.py
 COPY integrations/archidekt/runtime/authenticated.py /usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/integrations/authenticated.py
 COPY integrations/archidekt/runtime/http_base.py /usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/integrations/http_base.py
 COPY integrations/archidekt/runtime/public_collection.py /usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/integrations/public_collection.py
 COPY integrations/archidekt/runtime/account_identity.py /usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/services/account_identity.py
-RUN chmod 0755 /usr/local/bin/mtg-mcp /usr/local/bin/safrano9999-mtg-supervisor.py \
-    && chmod 0644 /opt/safrano9999-mtg/server.py \
-    && chown -R appuser:appuser /opt/safrano9999-mtg \
+RUN mkdir -p /opt/safrano9999-mtg \
+    && chmod 0755 /usr/local/bin/mtg-mcp /usr/local/bin/safrano9999-mtg-supervisor.py \
+    && chown appuser:appuser /opt/safrano9999-mtg \
     && python -m compileall -q /opt/safrano9999-mtg \
       /usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/integrations \
       /usr/local/lib/python3.13/site-packages/archidekt_commander_mcp/services
 
 ENV MTG_COMMANDER_ENABLED=true \
     MTG_COMMANDER_PORT=8001 \
-    MTG_HOST=0.0.0.0 \
+    MTG_MCP_TRANSPORT=streamable-http \
+    MTG_MCP_HOST=0.0.0.0 \
+    MTG_MCP_PORT=8001 \
+    MTG_MCP_HTTP_PATH=/mcp \
     ARCHIDEKT_MCP_HOST=0.0.0.0 \
     ARCHIDEKT_MCP_PORT=8000 \
     ARCHIDEKT_MCP_TRANSPORT=streamable-http \

@@ -1,4 +1,4 @@
-"""Run the upstream Archidekt MCP and mtg-commander in one container."""
+"""Run the Archidekt MCP and native mtg-commander HTTP server together."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ def main() -> int:
 
     if env.get("MTG_COMMANDER_ENABLED", "true").strip().lower() != "false":
         commander = subprocess.Popen(
-            [sys.executable, "/opt/safrano9999-mtg/server.py"],
+            [env.get("MTG_COMMANDER_BINARY", "/usr/local/bin/mtg-mcp")],
             env=env,
         )
         children.append(commander)

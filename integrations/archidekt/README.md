@@ -9,13 +9,13 @@ Use exactly these two MCP endpoints for the OpenClaw `mtg` agent:
 
 | Server | Internal URL | OpenClaw selection |
 | --- | --- | --- |
-| mtg-commander | `http://safrano9999-mtg:8000/mcp` | `MCP_ALLOW=mtg` |
-| archidekt-mcp | `http://archidekt-mcp:8000/mcp` | `MCP_ALLOW=mtg` |
+| mtg-commander | `http://safrano9999-mtg:8001/mcp` | `MCP_ALLOW=mtg` |
+| archidekt-mcp | `http://safrano9999-mtg:8000/mcp` | `MCP_ALLOW=mtg` |
 
-Replace the existing Archidekt URL and bearer in the ucore ENV. Remove the
-port-8001 endpoint from that configuration. Hermes retains global MCP access.
-Each endpoint uses its own bearer; the external Archidekt server uses the
-access token issued by its MCP OAuth flow.
+The combined image provides both services on the same internal hostname;
+`mtg-commander` uses Nathan's pinned native Streamable HTTP transport, while
+Archidekt uses its own OAuth/bearer configuration. Keep the two endpoints and
+their credentials separate; Hermes retains global MCP access.
 
 ## Corrections
 
