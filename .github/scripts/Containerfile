@@ -3,11 +3,12 @@ FROM docker.io/library/golang:1.27@sha256:3680233e3204827fbdc66088528ae6d4b3d034
 ARG COMMANDER_REVISION=efa6c3df0ac71678ecadb5864c6afe87b03b1ee1
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local
 WORKDIR /src
+# External Archidekt E2E checks opt out through the upstream short-mode flag.
 RUN git init && git remote add origin https://github.com/nathanmartins/mtg-mcp.git \
     && git -c http.version=HTTP/1.1 fetch --depth=1 origin "${COMMANDER_REVISION}" \
     && git checkout --detach FETCH_HEAD \
     && test "$(git rev-parse HEAD)" = "${COMMANDER_REVISION}" \
-    && go test ./... \
+    && go test -short ./... \
     && go build -trimpath -buildvcs=false -ldflags="-s -w" -o /mtg-mcp .
 
 FROM scratch AS node-release
