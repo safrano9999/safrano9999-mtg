@@ -33,7 +33,6 @@ RUN --mount=type=bind,from=node-release,source=/node.tar.xz,target=/tmp/node.tar
     && ln -s /usr/local/bin/npm /usr/bin/npm \
     && ln -s /usr/local/bin/npx /usr/bin/npx \
     && test "$(/usr/bin/node --version)" = "v26.12.1" \
-    && python3.14 -m ensurepip --upgrade \
     && ln -s /usr/bin/python3.14 /usr/local/bin/python3 \
     && dnf clean all && rm -rf /var/cache/dnf \
     && systemctl mask getty.target console-getty.service systemd-logind.service \
@@ -42,13 +41,14 @@ ENV container=podman PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
     MTG_HOST=0.0.0.0 MTG_COMMANDER_PORT=8000 MTG_ARCHIDEKT_PORT=8001 \
     MTG_COMMANDER_ENABLED=true MTG_ARCHIDEKT_ENABLED=true
 RUN --mount=type=bind,from=python-trust,target=/tmp/python-trust \
-    python3 -m pip install --break-system-packages --no-index --upgrade /tmp/python-trust/*.whl \
-    && python3 -c "import pip, certifi, pip._vendor.certifi as bundled; assert pip.__version__ == '26.2.2'; assert certifi.__version__ == '2026.10.19'; assert bundled.__version__ == '2026.10.19'"
+    python3 -c "import ensurepip, pathlib, shutil, sysconfig; seed = pathlib.Path(sysconfig.get_config_var('WHEEL_PKG_DIR') or pathlib.Path(ensurepip.__file__).with_name('_bundled')); [p.unlink() for p in seed.glob('pip-*.whl')]; shutil.copy('/tmp/python-trust/pip-26.2.2-py3-none-any.whl', seed); source = pathlib.Path(ensurepip.__file__); text = source.read_text(); old = ensurepip._PIP_VERSION; assert text.count(old) == 1; source.write_text(text.replace(old, '26.2.2')); ensurepip._PIP_VERSION = '26.2.2'; assert ensurepip.version() == '26.2.2'" \
+    && PYTHONPATH=/tmp/python-trust/pip-26.2.2-py3-none-any.whl python3 -m pip install --break-system-packages --no-index --upgrade /tmp/python-trust/*.whl \
+    && python3 -c "import ensurepip, pip, certifi, pip._vendor.certifi as bundled; assert ensurepip.version() == '26.2.2'; assert pip.__version__ == '26.2.2'; assert certifi.__version__ == '2026.10.19'; assert bundled.__version__ == '2026.10.19'"
 WORKDIR /opt/mtg
 COPY requirements.txt package.json package-lock.json ./
 RUN python3 -m pip install --no-cache-dir -r requirements.txt \
     && python3 -m pip check \
-    && python3 -c "import pip, certifi, pip._vendor.certifi as bundled; assert pip.__version__ == '26.2.2'; assert certifi.__version__ == '2026.10.19'; assert bundled.__version__ == '2026.10.19'" \
+    && python3 -c "import ensurepip, pip, certifi, pip._vendor.certifi as bundled; assert ensurepip.version() == '26.2.2'; assert pip.__version__ == '26.2.2'; assert certifi.__version__ == '2026.10.19'; assert bundled.__version__ == '2026.10.19'" \
     && npm ci --omit=dev --ignore-scripts --no-audit --no-fund \
     && npm cache clean --force
 COPY --from=commander-build /mtg-mcp /usr/local/bin/mtg-mcp
