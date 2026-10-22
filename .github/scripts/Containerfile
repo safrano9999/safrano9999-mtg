@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # Source of truth: SCRIPTS/githubactions. Generated copies are overwritten.
 FROM docker.io/library/golang:1.27@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244 AS commander-build
 ARG COMMANDER_REVISION=efa6c3df0ac71678ecadb5864c6afe87b03b1ee1
@@ -10,6 +11,13 @@ RUN git init && git remote add origin https://github.com/nathanmartins/mtg-mcp.g
     && test "$(git rev-parse HEAD)" = "${COMMANDER_REVISION}" \
     && go test -short ./... \
     && go build -trimpath -buildvcs=false -ldflags="-s -w" -o /mtg-mcp .
+
+# Verified wheels bootstrap trust updates without using an old pip CA bundle.
+FROM scratch AS python-trust
+ADD --checksum=sha256:fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70 \
+    https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl /pip-26.2.2-py3-none-any.whl
+ADD --checksum=sha256:42d35340cc5b9ba78e818ddbff0c5b1c2b779de448a340fd1b989f5fa8670e1b \
+    https://files.pythonhosted.org/packages/c4/51/29046e48f693c54e5b7412216d447a1d8362c9653148d98c02cdf65fa733/certifi-2026.10.19-py3-none-any.whl /certifi-2026.10.19-py3-none-any.whl
 
 FROM scratch AS node-release
 ADD --checksum=sha256:6170b2d474e1c626f43cff3adc118df9fe3b573258a4fc3d850c8dbc6b079bbd \
@@ -33,10 +41,14 @@ RUN --mount=type=bind,from=node-release,source=/node.tar.xz,target=/tmp/node.tar
 ENV container=podman PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
     MTG_HOST=0.0.0.0 MTG_COMMANDER_PORT=8000 MTG_ARCHIDEKT_PORT=8001 \
     MTG_COMMANDER_ENABLED=true MTG_ARCHIDEKT_ENABLED=true
+RUN --mount=type=bind,from=python-trust,target=/tmp/python-trust \
+    python3 -m pip install --break-system-packages --no-index --upgrade /tmp/python-trust/*.whl \
+    && python3 -c "import pip, certifi, pip._vendor.certifi as bundled; assert pip.__version__ == '26.2.2'; assert certifi.__version__ == '2026.10.19'; assert bundled.__version__ == '2026.10.19'"
 WORKDIR /opt/mtg
 COPY requirements.txt package.json package-lock.json ./
 RUN python3 -m pip install --no-cache-dir -r requirements.txt \
     && python3 -m pip check \
+    && python3 -c "import pip, certifi, pip._vendor.certifi as bundled; assert pip.__version__ == '26.2.2'; assert certifi.__version__ == '2026.10.19'; assert bundled.__version__ == '2026.10.19'" \
     && npm ci --omit=dev --ignore-scripts --no-audit --no-fund \
     && npm cache clean --force
 COPY --from=commander-build /mtg-mcp /usr/local/bin/mtg-mcp
