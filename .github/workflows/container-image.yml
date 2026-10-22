@@ -38,7 +38,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "26.12.1"
       - name: Test Archidekt implementation
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
@@ -52,6 +52,22 @@ jobs:
           version="${REQUESTED_TAG:-$(date -u +%Y.%-m.%-d)}"
           [[ "$version" =~ ^[A-Za-z0-9_.-]+$ ]]
           echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Check out pinned Fedora OCI policy
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: safrano9999/fedora45-ai-safrano9999
+          ref: 49b5f4c1cfc257a80a8a739b2c0bc32dab32e00f
+          path: build/fedora-policy
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /.github/scripts/prepare-fedora-beta.py
+            /upgrade-loop/build_dependencies.py
+            /upgrade-loop/build-dependencies-whitelist.json
+            /fedora45-ai-core-pre/Containerfile
+      - name: Verify approved Fedora OCI context
+        id: fedora
+        run: python3 build/fedora-policy/.github/scripts/prepare-fedora-beta.py
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -64,6 +80,7 @@ jobs:
           context: .
           file: .github/scripts/Containerfile
           platforms: linux/amd64
+          build-contexts: ${{ steps.fedora.outputs.context }}
           pull: true
           load: true
           tags: ${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.version }}
