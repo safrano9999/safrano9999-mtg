@@ -13,8 +13,7 @@ async def main():
     token = os.environ.get("MTG_MCP_BEARER", "")
     decks = os.environ.get("ARCHIDECKS", "").strip()
     expected_archidekt = {"create_deck", "list_decks", "read_deck", "update_deck", "lookup_cards", "search_cards"}
-    for component, port, count in [("commander", 8000, 19), ("archidekt", 8001, 6)]:
-        port = int(os.environ.get(f"MTG_{component.upper()}_PORT", port))
+    for component, port, count in [("archidekt", 8000, 6), ("commander", 8001, 19)]:
         url = f"http://127.0.0.1:{port}"
         enabled = os.environ.get(f"MTG_{component.upper()}_ENABLED", "true") != "false"
         state = subprocess.check_output([

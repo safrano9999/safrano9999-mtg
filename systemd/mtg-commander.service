@@ -6,7 +6,7 @@ After=network.target
 ExecCondition=/usr/bin/test "${MTG_COMMANDER_ENABLED}" != false
 ExecStart=/usr/bin/python3 /opt/mtg/server.py commander
 WorkingDirectory=/tmp
-PassEnvironment=MTG_COMMANDER_ENABLED MTG_HOST MTG_COMMANDER_PORT MTG_MCP_BEARER ARCHIDECKS
+PassEnvironment=MTG_COMMANDER_ENABLED MTG_HOST MTG_MCP_BEARER ARCHIDECKS
 Environment=PYTHONUNBUFFERED=1
 Restart=on-failure
 RestartSec=3

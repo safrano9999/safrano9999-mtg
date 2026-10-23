@@ -38,7 +38,7 @@ RUN --mount=type=bind,from=node-release,source=/node.tar.xz,target=/tmp/node.tar
     && systemctl mask getty.target console-getty.service systemd-logind.service \
     && systemctl set-default multi-user.target
 ENV container=podman PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
-    MTG_HOST=0.0.0.0 MTG_COMMANDER_PORT=8000 MTG_ARCHIDEKT_PORT=8001 \
+    MTG_HOST=0.0.0.0 \
     MTG_COMMANDER_ENABLED=true MTG_ARCHIDEKT_ENABLED=true
 RUN --mount=type=bind,from=python-trust,target=/tmp/python-trust \
     python3 -c "import ensurepip, pathlib, shutil, sysconfig; seed = pathlib.Path(sysconfig.get_config_var('WHEEL_PKG_DIR') or pathlib.Path(ensurepip.__file__).with_name('_bundled')); [p.unlink() for p in seed.glob('pip-*.whl')]; shutil.copy('/tmp/python-trust/pip-26.2.2-py3-none-any.whl', seed); source = pathlib.Path(ensurepip.__file__); text = source.read_text(); old = ensurepip._PIP_VERSION; assert text.count(old) == 1; source.write_text(text.replace(old, '26.2.2')); ensurepip._PIP_VERSION = '26.2.2'; assert ensurepip.version() == '26.2.2'" \
@@ -65,7 +65,7 @@ LABEL io.safrano9999.nodejs.version="26.12.1" \
 EXPOSE 8000 8001
 STOPSIGNAL SIGRTMIN+3
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD python3 -c 'import os,urllib.request; [urllib.request.urlopen("http://127.0.0.1:"+os.getenv("MTG_"+name+"_PORT",str(port))+"/healthz",timeout=4).read() for name,port in [("COMMANDER",8000),("ARCHIDEKT",8001)] if os.getenv("MTG_"+name+"_ENABLED","true") != "false"]'
+    CMD python3 -c 'import os,urllib.request; [urllib.request.urlopen("http://127.0.0.1:"+str(port)+"/healthz",timeout=4).read() for name,port in [("ARCHIDEKT",8000),("COMMANDER",8001)] if os.getenv("MTG_"+name+"_ENABLED","true") != "false"]'
 ENTRYPOINT ["/sbin/init"]
 
 LABEL org.opencontainers.image.base.name="Fedora-Container-Base-Generic-45_Beta-1.3.x86_64" \

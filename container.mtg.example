@@ -6,13 +6,15 @@ CONTAINER_NR=TUN
 #default-preset: 127.0.0.1
 MTG_PUBLISH_HOST=127.0.0.1
 
-# MCP URL: http://safrano9999-mtg:8000/mcp (or configured host publish port).
-#default-preset: 8000
-MTG_COMMANDER_PUBLISH_PORT=8000
-
 # MCP URL: http://safrano9999-mtg:8001/mcp (or configured host publish port).
+#container-port: MTG_COMMANDER_PUBLISH_PORT 8001
 #default-preset: 8001
-MTG_ARCHIDEKT_PUBLISH_PORT=8001
+MTG_COMMANDER_PUBLISH_PORT=8001
+
+# MCP URL: http://safrano9999-mtg:8000/mcp (or configured host publish port).
+#container-port: MTG_ARCHIDEKT_PUBLISH_PORT 8000
+#default-preset: 8000
+MTG_ARCHIDEKT_PUBLISH_PORT=8000
 
 #repeat-group: ADDITIONAL_LINE suffix02 ADDITIONAL_LINE
 #repeat-freeform: ADDITIONAL_LINE

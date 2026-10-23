@@ -9,11 +9,11 @@ Use exactly these two MCP endpoints for the OpenClaw `mtg` agent:
 
 | Server | Internal URL | OpenClaw selection |
 | --- | --- | --- |
-| mtg-commander | `http://safrano9999-mtg:8000/mcp` | `MCP_ALLOW=mtg` |
+| mtg-commander | `http://safrano9999-mtg:8001/mcp` | `MCP_ALLOW=mtg` |
 | mtg-archidekt | `http://archidekt-mcp:8000/mcp` | `MCP_ALLOW=mtg` |
 
 Replace the existing Archidekt URL and bearer in the ucore ENV. Remove the
-port-8001 endpoint from that configuration. Hermes retains global MCP access.
+bundled Archidekt endpoint from that configuration. Hermes retains global MCP access.
 Each endpoint uses its own bearer; the external Archidekt server uses the
 access token issued by its MCP OAuth flow.
 

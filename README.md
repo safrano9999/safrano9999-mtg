@@ -6,8 +6,10 @@ The MCP runtime uses Fedora's Python 3.14 package because the current FastMCP de
 
 | Service | Internal endpoint | Backend |
 | --- | --- | --- |
-| mtg-commander | `http://safrano9999-mtg:8000/mcp` | [nathanmartins/mtg-mcp](https://github.com/nathanmartins/mtg-mcp), 19 research tools |
-| mtg-archidekt | `http://safrano9999-mtg:8001/mcp` | Command Tower fork, 6 deck and card tools |
+| mtg-archidekt | `http://safrano9999-mtg:8000/mcp` | Command Tower fork, 6 deck and card tools |
+| mtg-commander | `http://safrano9999-mtg:8001/mcp` | [nathanmartins/mtg-mcp](https://github.com/nathanmartins/mtg-mcp), 19 research tools |
+
+Internal ports are fixed. Only optional host publication is configurable through `container.mtg.example`.
 
 Archidekt tools: `create_deck`, `list_decks`, `read_deck`, `update_deck`,
 `lookup_cards`, `search_cards`. Custom-card tools are removed. The upstream
@@ -54,7 +56,7 @@ Environment=MTG_COMMANDER_ENABLED=true
 Environment=MTG_ARCHIDEKT_ENABLED=false
 ```
 
-This starts only Commander on port 8000. Reverse the values for Archidekt only;
+This starts only Commander on port 8001. Reverse the values for Archidekt only;
 set both to `true` for both services, or both to `false` to leave both stopped.
 systemd evaluates the variables before starting each service. The container
 healthcheck checks only enabled endpoints and succeeds when both are disabled.
