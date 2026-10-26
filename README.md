@@ -7,7 +7,7 @@ The MCP runtime uses Fedora's Python 3.14 package because the current FastMCP de
 | Service | Internal endpoint | Backend |
 | --- | --- | --- |
 | mtg-archidekt | `http://safrano9999-mtg:8000/mcp` | Command Tower fork, 6 deck and card tools |
-| mtg-commander | `http://safrano9999-mtg:8001/mcp` | [nathanmartins/mtg-mcp](https://github.com/nathanmartins/mtg-mcp), 19 research tools |
+| mtg-commander | `http://safrano9999-mtg:8001/mcp` | [nathanmartins/mtg-mcp v3.2.1](https://github.com/nathanmartins/mtg-mcp/releases/tag/v3.2.1), 20 research tools |
 
 Internal ports are fixed. Only optional host publication is configurable through `container.mtg.example`.
 

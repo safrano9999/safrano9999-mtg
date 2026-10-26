@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1.7
 # Source of truth: SCRIPTS/githubactions. Generated copies are overwritten.
-FROM docker.io/library/golang:1.27@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244 AS commander-build
-ARG COMMANDER_REVISION=efa6c3df0ac71678ecadb5864c6afe87b03b1ee1
+FROM docker.io/library/golang:1.27.3@sha256:f20d83a83e18dbd2a4714b8ffd4b30b287b6243962dd75608e86abcc63ba4efc AS commander-build
+# nathanmartins/mtg-mcp v3.2.1 (peeled release commit).
+ARG COMMANDER_REVISION=5c91e7dfaf82a60e919d0dd7acb5a33400daf852
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local
 WORKDIR /src
 # External Archidekt E2E checks opt out through the upstream short-mode flag.
@@ -10,7 +11,9 @@ RUN git init && git remote add origin https://github.com/nathanmartins/mtg-mcp.g
     && git checkout --detach FETCH_HEAD \
     && test "$(git rev-parse HEAD)" = "${COMMANDER_REVISION}" \
     && go test -short ./... \
-    && go build -trimpath -buildvcs=false -ldflags="-s -w" -o /mtg-mcp .
+    && go build -trimpath -buildvcs=false \
+         -ldflags="-s -w -X main.version=3.2.1 -X main.commit=${COMMANDER_REVISION}" \
+         -o /mtg-mcp ./cmd/mtg-mcp
 
 # Verified wheels bootstrap trust updates without using an old pip CA bundle.
 FROM scratch AS python-trust

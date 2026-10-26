@@ -13,7 +13,7 @@ async def main():
     token = os.environ.get("MTG_MCP_BEARER", "")
     decks = os.environ.get("ARCHIDECKS", "").strip()
     expected_archidekt = {"create_deck", "list_decks", "read_deck", "update_deck", "lookup_cards", "search_cards"}
-    for component, port, count in [("archidekt", 8000, 6), ("commander", 8001, 19)]:
+    for component, port, count in [("archidekt", 8000, 6), ("commander", 8001, 20)]:
         url = f"http://127.0.0.1:{port}"
         enabled = os.environ.get(f"MTG_{component.upper()}_ENABLED", "true") != "false"
         state = subprocess.check_output([
@@ -47,6 +47,10 @@ async def main():
             assert len(tools) == count, (component, names)
             if component == "archidekt":
                 assert names == expected_archidekt
+            else:
+                assert {"get_archidekt_user_decks", "get_archidekt_deck", "get_card_image"} <= names
+                version = subprocess.check_output(["mtg-mcp", "--version"], text=True)
+                assert version.startswith("mtg-mcp version 3.2.1 "), version
             instructions = client.initialize_result.instructions
             assert instructions == (f"Hinterlegte Archidekt-Decks: {decks}." if decks else None), instructions
             assert await client.ping()
